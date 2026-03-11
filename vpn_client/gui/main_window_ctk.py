@@ -177,133 +177,194 @@ class VPNMainWindow(ctk.CTkFrame):
             fg_color="transparent"
         )
         self.form_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        
+
         # Привязка прокрутки колесом мыши
         self.form_frame.bind('<Enter>', self._bind_to_mousewheel)
         self.form_frame.bind('<Leave>', self._unbind_from_mousewheel)
+
+        # Секция управления профилями
+        self.profile_frame = ctk.CTkFrame(
+            self.form_frame,
+            fg_color=COLORS["bg_tertiary"],
+            corner_radius=10,
+            border_width=1,
+            border_color=COLORS["border"]
+        )
+        self.profile_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 15))
+        self.profile_frame.grid_columnconfigure(0, weight=1)
+
+        # Выбор профиля
+        ctk.CTkLabel(
+            self.profile_frame, text="📁 Профиль:", font=ctk.CTkFont(size=13, weight="bold"),
+            text_color=COLORS["text_primary"]
+        ).grid(row=0, column=0, sticky="w", pady=10, padx=10)
+
+        self.combo_profiles = ctk.CTkComboBox(
+            self.profile_frame,
+            values=[],
+            width=300,
+            height=36,
+            fg_color=COLORS["bg_tertiary"],
+            border_color=COLORS["border"],
+            text_color=COLORS["text_primary"],
+            button_color=COLORS["accent_blue"],
+            button_hover_color=COLORS["accent_blue_hover"],
+            command=self.on_profile_selected
+        )
+        self.combo_profiles.grid(row=0, column=1, sticky="w", pady=10, padx=10)
+
+        # Кнопки управления профилями
+        self.btn_save_profile = ctk.CTkButton(
+            self.profile_frame,
+            text="💾 Сохранить",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=COLORS["success"],
+            hover_color="#27ae60",
+            corner_radius=8,
+            height=36,
+            width=110,
+            command=self.save_profile_dialog
+        )
+        self.btn_save_profile.grid(row=0, column=2, sticky="w", pady=10, padx=10)
+
+        self.btn_delete_profile = ctk.CTkButton(
+            self.profile_frame,
+            text="🗑 Удалить",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=COLORS["danger"],
+            hover_color="#c0392b",
+            corner_radius=8,
+            height=36,
+            width=100,
+            command=self.delete_profile_dialog
+        )
+        self.btn_delete_profile.grid(row=0, column=3, sticky="w", pady=10, padx=10)
+
+        # Загрузка списка профилей
+        self.refresh_profiles()
 
         # Общий стиль для меток
         label_font = ctk.CTkFont(size=13, weight="bold")
         entry_height = 42
         entry_width = 450
-        
+
         # Адрес сервера
         ctk.CTkLabel(
             self.form_frame, text="Адрес сервера:", font=label_font,
             text_color=COLORS["text_primary"]
-        ).grid(row=0, column=0, sticky="w", pady=(15, 8), padx=10)
+        ).grid(row=1, column=0, sticky="w", pady=(15, 8), padx=10)
         self.edit_address = ctk.CTkEntry(
             self.form_frame, placeholder_text="example.com", width=entry_width, height=entry_height,
             fg_color=COLORS["bg_tertiary"], border_color=COLORS["border"],
             text_color=COLORS["text_primary"]
         )
-        self.edit_address.grid(row=0, column=1, pady=(15, 8), padx=10)
+        self.edit_address.grid(row=1, column=1, pady=(15, 8), padx=10)
         self._add_context_menu(self.edit_address)
 
         # Порт
         ctk.CTkLabel(
             self.form_frame, text="Порт:", font=label_font,
             text_color=COLORS["text_primary"]
-        ).grid(row=1, column=0, sticky="w", pady=8, padx=10)
+        ).grid(row=2, column=0, sticky="w", pady=8, padx=10)
         self.spin_port = ctk.CTkEntry(
             self.form_frame, placeholder_text="443", width=entry_width, height=entry_height,
             fg_color=COLORS["bg_tertiary"], border_color=COLORS["border"],
             text_color=COLORS["text_primary"]
         )
-        self.spin_port.grid(row=1, column=1, pady=8, padx=10)
+        self.spin_port.grid(row=2, column=1, pady=8, padx=10)
         self._add_context_menu(self.spin_port)
 
         # UUID
         ctk.CTkLabel(
             self.form_frame, text="UUID:", font=label_font,
             text_color=COLORS["text_primary"]
-        ).grid(row=2, column=0, sticky="w", pady=8, padx=10)
+        ).grid(row=3, column=0, sticky="w", pady=8, padx=10)
         self.edit_uuid = ctk.CTkEntry(
             self.form_frame, placeholder_text="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
             width=entry_width, height=entry_height,
             fg_color=COLORS["bg_tertiary"], border_color=COLORS["border"],
             text_color=COLORS["text_primary"]
         )
-        self.edit_uuid.grid(row=2, column=1, pady=8, padx=10)
+        self.edit_uuid.grid(row=3, column=1, pady=8, padx=10)
         self._add_context_menu(self.edit_uuid)
 
         # SNI
         ctk.CTkLabel(
             self.form_frame, text="SNI:", font=label_font,
             text_color=COLORS["text_primary"]
-        ).grid(row=3, column=0, sticky="w", pady=8, padx=10)
+        ).grid(row=4, column=0, sticky="w", pady=8, padx=10)
         self.edit_sni = ctk.CTkEntry(
             self.form_frame, placeholder_text="example.com", width=entry_width, height=entry_height,
             fg_color=COLORS["bg_tertiary"], border_color=COLORS["border"],
             text_color=COLORS["text_primary"]
         )
-        self.edit_sni.grid(row=3, column=1, pady=8, padx=10)
+        self.edit_sni.grid(row=4, column=1, pady=8, padx=10)
         self._add_context_menu(self.edit_sni)
 
         # Public Key
         ctk.CTkLabel(
             self.form_frame, text="Public Key:", font=label_font,
             text_color=COLORS["text_primary"]
-        ).grid(row=4, column=0, sticky="w", pady=8, padx=10)
+        ).grid(row=5, column=0, sticky="w", pady=8, padx=10)
         self.edit_public_key = ctk.CTkEntry(
             self.form_frame, placeholder_text="Публичный ключ Reality",
             width=entry_width, height=entry_height,
             fg_color=COLORS["bg_tertiary"], border_color=COLORS["border"],
             text_color=COLORS["text_primary"]
         )
-        self.edit_public_key.grid(row=4, column=1, pady=8, padx=10)
+        self.edit_public_key.grid(row=5, column=1, pady=8, padx=10)
         self._add_context_menu(self.edit_public_key)
 
         # Short ID
         ctk.CTkLabel(
             self.form_frame, text="Short ID:", font=label_font,
             text_color=COLORS["text_primary"]
-        ).grid(row=5, column=0, sticky="w", pady=8, padx=10)
+        ).grid(row=6, column=0, sticky="w", pady=8, padx=10)
         self.edit_short_id = ctk.CTkEntry(
             self.form_frame, placeholder_text="hex строка", width=entry_width, height=entry_height,
             fg_color=COLORS["bg_tertiary"], border_color=COLORS["border"],
             text_color=COLORS["text_primary"]
         )
-        self.edit_short_id.grid(row=5, column=1, pady=8, padx=10)
+        self.edit_short_id.grid(row=6, column=1, pady=8, padx=10)
         self._add_context_menu(self.edit_short_id)
 
         # Flow
         ctk.CTkLabel(
             self.form_frame, text="Flow:", font=label_font,
             text_color=COLORS["text_primary"]
-        ).grid(row=6, column=0, sticky="w", pady=8, padx=10)
+        ).grid(row=7, column=0, sticky="w", pady=8, padx=10)
         self.combo_flow = ctk.CTkComboBox(
             self.form_frame, values=["", "xtls-rprx-vision"], width=entry_width, height=entry_height,
             fg_color=COLORS["bg_tertiary"], border_color=COLORS["border"],
             text_color=COLORS["text_primary"],
             button_color=COLORS["accent_blue"], button_hover_color=COLORS["accent_blue_hover"]
         )
-        self.combo_flow.grid(row=6, column=1, pady=8, padx=10)
+        self.combo_flow.grid(row=7, column=1, pady=8, padx=10)
 
         # Транспорт
         ctk.CTkLabel(
             self.form_frame, text="Транспорт:", font=label_font,
             text_color=COLORS["text_primary"]
-        ).grid(row=7, column=0, sticky="w", pady=8, padx=10)
+        ).grid(row=8, column=0, sticky="w", pady=8, padx=10)
         self.combo_transport = ctk.CTkComboBox(
             self.form_frame, values=["xhttp", "grpc", "ws", "tcp"], width=entry_width, height=entry_height,
             fg_color=COLORS["bg_tertiary"], border_color=COLORS["border"],
             text_color=COLORS["text_primary"],
             button_color=COLORS["accent_blue"], button_hover_color=COLORS["accent_blue_hover"]
         )
-        self.combo_transport.grid(row=7, column=1, pady=8, padx=10)
+        self.combo_transport.grid(row=8, column=1, pady=8, padx=10)
 
         # Локальный порт (по умолчанию 10808)
         ctk.CTkLabel(
             self.form_frame, text="Local SOCKS:", font=label_font,
             text_color=COLORS["text_primary"]
-        ).grid(row=8, column=0, sticky="w", pady=8, padx=10)
+        ).grid(row=9, column=0, sticky="w", pady=8, padx=10)
         self.spin_local_port = ctk.CTkEntry(
             self.form_frame, placeholder_text="10808", width=entry_width, height=entry_height,
             fg_color=COLORS["bg_tertiary"], border_color=COLORS["border"],
             text_color=COLORS["text_primary"]
         )
-        self.spin_local_port.grid(row=8, column=1, pady=8, padx=10)
+        self.spin_local_port.grid(row=9, column=1, pady=8, padx=10)
         self.spin_local_port.insert(0, "10808")
         self._add_context_menu(self.spin_local_port)
 
@@ -318,7 +379,7 @@ class VPNMainWindow(ctk.CTkFrame):
             height=44,
             command=self.import_from_link
         )
-        self.btn_import.grid(row=9, column=1, pady=(25, 15), sticky="w")
+        self.btn_import.grid(row=10, column=1, pady=(25, 15), sticky="w")
 
     def _add_context_menu(self, widget):
         """Добавление кастомного контекстного меню (ПКМ) для поля ввода"""
@@ -436,6 +497,90 @@ class VPNMainWindow(ctk.CTkFrame):
         direction = -1 if event.num == 4 else 1
         # Прокрутка через yview с аргументом scroll
         self.form_frame._parent_canvas.yview("scroll", direction, "units")
+
+    def refresh_profiles(self):
+        """Обновление списка профилей в ComboBox"""
+        profile_names = self.controller.get_profile_names()
+        self.combo_profiles.configure(values=profile_names)
+        if profile_names:
+            self.combo_profiles.set(profile_names[0])
+        else:
+            self.combo_profiles.set("Новый профиль...")
+
+    def on_profile_selected(self, profile_name):
+        """Обработка выбора профиля"""
+        if profile_name == "Новый профиль..." or not profile_name:
+            return
+        
+        profile = self.controller.load_profile(profile_name)
+        if profile:
+            self.edit_address.delete(0, 'end')
+            self.edit_address.insert(0, profile.get("address", ""))
+            self.spin_port.delete(0, 'end')
+            self.spin_port.insert(0, str(profile.get("port", "443")))
+            self.edit_uuid.delete(0, 'end')
+            self.edit_uuid.insert(0, profile.get("uuid", ""))
+            self.edit_sni.delete(0, 'end')
+            self.edit_sni.insert(0, profile.get("sni", ""))
+            self.edit_public_key.delete(0, 'end')
+            self.edit_public_key.insert(0, profile.get("public_key", ""))
+            self.edit_short_id.delete(0, 'end')
+            self.edit_short_id.insert(0, profile.get("short_id", ""))
+            self.combo_flow.set(profile.get("flow", ""))
+            self.combo_transport.set(profile.get("transport", "xhttp"))
+            self.spin_local_port.delete(0, 'end')
+            self.spin_local_port.insert(0, str(profile.get("local_port", "10808")))
+            self.append_log(f"✅ Профиль '{profile_name}' загружен")
+
+    def save_profile_dialog(self):
+        """Диалог сохранения профиля"""
+        dialog = ctk.CTkInputDialog(
+            title="Сохранение профиля",
+            text="Введите имя профиля:"
+        )
+        profile_name = dialog.get_input()
+        
+        if profile_name:
+            profile_name = profile_name.strip()
+            if not profile_name:
+                messagebox.showwarning("Ошибка", "Имя профиля не может быть пустым")
+                return
+            
+            # Получаем текущие настройки из полей
+            config = {
+                "address": self.edit_address.get(),
+                "port": self.spin_port.get(),
+                "uuid": self.edit_uuid.get(),
+                "sni": self.edit_sni.get(),
+                "public_key": self.edit_public_key.get(),
+                "short_id": self.edit_short_id.get(),
+                "flow": self.combo_flow.get(),
+                "transport": self.combo_transport.get(),
+                "local_port": self.spin_local_port.get(),
+            }
+            
+            # Сохраняем профиль
+            if self.controller.save_profile(profile_name, config):
+                self.append_log(f"✅ Профиль '{profile_name}' сохранен")
+                self.refresh_profiles()
+                self.combo_profiles.set(profile_name)
+            else:
+                messagebox.showerror("Ошибка", "Не удалось сохранить профиль")
+
+    def delete_profile_dialog(self):
+        """Диалог удаления профиля"""
+        profile_name = self.combo_profiles.get()
+        
+        if not profile_name or profile_name == "Новый профиль...":
+            messagebox.showinfo("Информация", "Выберите профиль для удаления")
+            return
+        
+        if messagebox.askyesno("Удаление профиля", f"Удалить профиль '{profile_name}'?"):
+            if self.controller.delete_profile(profile_name):
+                self.append_log(f"🗑 Профиль '{profile_name}' удален")
+                self.refresh_profiles()
+            else:
+                messagebox.showerror("Ошибка", "Не удалось удалить профиль")
 
     def create_settings_tab(self):
         """Вкладка настроек"""

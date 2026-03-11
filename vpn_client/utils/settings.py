@@ -80,3 +80,34 @@ class SettingsManager:
         """Получение положения и размера окна"""
         settings = self.load()
         return settings.get('window_geometry')
+
+    def save_profile(self, name: str, config: Dict[str, Any]) -> bool:
+        """Сохранение профиля подключения"""
+        settings = self.load()
+        if 'profiles' not in settings:
+            settings['profiles'] = {}
+        settings['profiles'][name] = config
+        return self.save(settings)
+
+    def load_profile(self, name: str) -> Optional[Dict[str, Any]]:
+        """Загрузка профиля подключения"""
+        settings = self.load()
+        profiles = settings.get('profiles', {})
+        return profiles.get(name)
+
+    def get_profiles(self) -> Dict[str, Any]:
+        """Получение списка всех профилей"""
+        settings = self.load()
+        return settings.get('profiles', {})
+
+    def get_profile_names(self) -> list:
+        """Получение списка имен профилей"""
+        return list(self.get_profiles().keys())
+
+    def delete_profile(self, name: str) -> bool:
+        """Удаление профиля"""
+        settings = self.load()
+        if 'profiles' in settings and name in settings['profiles']:
+            del settings['profiles'][name]
+            return self.save(settings)
+        return False

@@ -196,6 +196,26 @@ class VPNController:
         from vpn_client.utils.settings import SettingsManager
         return SettingsManager(str(self.config_dir)).get_last_config()
 
+    def save_profile(self, name: str, config: Dict[str, Any]) -> bool:
+        """Сохранение профиля подключения"""
+        from vpn_client.utils.settings import SettingsManager
+        return SettingsManager(str(self.config_dir)).save_profile(name, config)
+
+    def load_profile(self, name: str) -> Optional[Dict[str, Any]]:
+        """Загрузка профиля подключения"""
+        from vpn_client.utils.settings import SettingsManager
+        return SettingsManager(str(self.config_dir)).load_profile(name)
+
+    def get_profile_names(self) -> list:
+        """Получение списка имен профилей"""
+        from vpn_client.utils.settings import SettingsManager
+        return SettingsManager(str(self.config_dir)).get_profile_names()
+
+    def delete_profile(self, name: str) -> bool:
+        """Удаление профиля"""
+        from vpn_client.utils.settings import SettingsManager
+        return SettingsManager(str(self.config_dir)).delete_profile(name)
+
     def _on_xray_start(self):
         if self.on_log:
             self.on_log("Xray запущен")
