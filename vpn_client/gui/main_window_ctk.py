@@ -95,16 +95,34 @@ class VPNMainWindow(ctk.CTkFrame):
         self.status_indicator.pack(side="right")
 
         # Статус бар
-        self.status_label = ctk.CTkLabel(
+        self.status_frame = ctk.CTkFrame(
             self,
-            text="⏸ Статус: Остановлен",
-            font=ctk.CTkFont(size=14, weight="bold"),
             fg_color=COLORS["bg_secondary"],
-            text_color=COLORS["text_secondary"],
             corner_radius=8,
             height=45
         )
-        self.status_label.pack(fill="x", padx=30, pady=(0, 15))
+        self.status_frame.pack(fill="x", padx=30, pady=(0, 15))
+        self.status_frame.pack_propagate(False)
+
+        self.status_label = ctk.CTkLabel(
+            self.status_frame,
+            text="⏸ Статус: Остановлен",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="transparent",
+            text_color=COLORS["text_secondary"]
+        )
+        self.status_label.pack(side="left", padx=15, pady=0)
+
+        self.session_timer_label = ctk.CTkLabel(
+            self.status_frame,
+            text="",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="transparent",
+            text_color=COLORS["accent_blue"]
+        )
+        self.session_timer_label.pack(side="right", padx=15, pady=0)
+
+        self.session_timer_id = None
 
         # Вкладки
         self.tabview = ctk.CTkTabview(
@@ -723,7 +741,7 @@ class VPNMainWindow(ctk.CTkFrame):
         if connected:
             self.status_label.configure(
                 text="✅ Статус: Подключено",
-                fg_color=COLORS["success_bg"],
+                fg_color="transparent",
                 text_color=COLORS["success"]
             )
             self.status_indicator.configure(text_color=COLORS["success"])
@@ -732,10 +750,12 @@ class VPNMainWindow(ctk.CTkFrame):
                 fg_color=COLORS["danger"],
                 hover_color="#c0392b"
             )
+            self.session_timer_label.configure(text="⏱ 00:00:00")
+            self.start_session_timer()
         else:
             self.status_label.configure(
                 text="⏸ Статус: Остановлен",
-                fg_color=COLORS["bg_secondary"],
+                fg_color="transparent",
                 text_color=COLORS["text_secondary"]
             )
             self.status_indicator.configure(text_color=COLORS["danger"])
@@ -744,6 +764,34 @@ class VPNMainWindow(ctk.CTkFrame):
                 fg_color=COLORS["success"],
                 hover_color="#27ae60"
             )
+            self.stop_session_timer()
+
+    def start_session_timer(self):
+        """Запуск таймера сеанса"""
+        self.session_start_time = datetime.now()
+        self.update_session_timer()
+
+    def stop_session_timer(self):
+        """Остановка таймера сеанса"""
+        if self.session_timer_id:
+            self.master.after_cancel(self.session_timer_id)
+            self.session_timer_id = None
+        self.session_timer_label.configure(text="")
+
+    def update_session_timer(self):
+        """Обновление таймера сеанса"""
+        if self.is_connected and self.session_start_time:
+            elapsed = datetime.now() - self.session_start_time
+            self.session_timer_label.configure(text=f"⏱ {self.format_session_time(elapsed)}")
+            self.session_timer_id = self.master.after(1000, self.update_session_timer)
+
+    def format_session_time(self, delta):
+        """Форматирование времени сеанса"""
+        total_seconds = int(delta.total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
     def import_from_link(self):
         """Импорт из VLESS ссылки"""
