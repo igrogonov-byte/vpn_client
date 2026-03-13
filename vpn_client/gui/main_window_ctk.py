@@ -888,9 +888,87 @@ class VPNMainWindow(ctk.CTkFrame):
                     self.append_log("✅ Конфигурация импортирована из ссылки")
                     self.save_settings()
                 else:
-                    messagebox.showwarning("Ошибка", "Неверный формат ссылки")
+                    self.show_import_error_dialog(
+                        "Не удалось распарсить VLESS ссылку.",
+                        "Проверьте правильность формата ссылки:\nvless://uuid@address:port?security=reality&type=xhttp&..."
+                    )
             except Exception as e:
-                messagebox.showerror("Ошибка", str(e))
+                self.show_import_error_dialog(
+                    "Невозможно применить настройки из ссылки:",
+                    str(e)
+                )
+
+    def show_import_error_dialog(self, title: str, message: str):
+        """Показ диалога ошибки импорта в стиле GUI"""
+        # Центрирование
+        self.master.update_idletasks()
+        main_x = self.master.winfo_rootx()
+        main_y = self.master.winfo_rooty()
+        main_w = self.master.winfo_width()
+        main_h = self.master.winfo_height()
+        dialog_w = 450
+        dialog_h = 200
+        dialog_x = main_x + (main_w - dialog_w) // 2
+        dialog_y = main_y + (main_h - dialog_h) // 2
+
+        # Диалоговое окно
+        dialog = ctk.CTkToplevel(self.master)
+        dialog.title("")
+        dialog.geometry(f"{dialog_w}x{dialog_h}+{dialog_x}+{dialog_y}")
+        dialog.resizable(False, False)
+        dialog.attributes('-topmost', True)
+        dialog.configure(fg_color=COLORS["bg_primary"])
+
+        # Контейнер
+        container = ctk.CTkFrame(dialog, fg_color="transparent")
+        container.pack(fill="both", expand=True, padx=25, pady=20)
+
+        # Верхняя часть с иконкой и заголовком
+        top_frame = ctk.CTkFrame(container, fg_color="transparent")
+        top_frame.pack(fill="x", pady=(5, 15))
+
+        ctk.CTkLabel(
+            top_frame,
+            text="❌",
+            font=ctk.CTkFont(size=26),
+            width=40
+        ).pack(side="left")
+
+        ctk.CTkLabel(
+            top_frame,
+            text="Ошибка импорта",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=COLORS["danger"],
+            justify="left"
+        ).pack(side="left", pady=8, padx=(5, 0))
+
+        # Текст ошибки
+        ctk.CTkLabel(
+            container,
+            text=f"{title}\n{message}",
+            font=ctk.CTkFont(size=12),
+            text_color=COLORS["text_primary"],
+            justify="left",
+            wraplength=380
+        ).pack(fill="x", pady=(0, 15), padx=10)
+
+        # Кнопка OK
+        btn_frame = ctk.CTkFrame(container, fg_color="transparent")
+        btn_frame.pack(side="bottom", fill="x")
+
+        ctk.CTkButton(
+            btn_frame,
+            text="OK",
+            command=dialog.destroy,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=COLORS["accent_blue"],
+            hover_color=COLORS["accent_blue_hover"],
+            corner_radius=8,
+            width=110,
+            height=38
+        ).pack(side="right")
+
+        dialog.update()
 
     def toggle_system_proxy(self):
         """Переключение системного прокси"""
