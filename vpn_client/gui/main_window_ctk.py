@@ -3,9 +3,12 @@
 Современный строгий дизайн с серо-голубой цветовой схемой
 """
 import customtkinter as ctk
+import tkinter as tk
 from tkinter import messagebox, filedialog, Menu
 from datetime import datetime
 import json
+import threading
+import subprocess
 
 
 # Цветовая палитра
@@ -120,9 +123,20 @@ class VPNMainWindow(ctk.CTkFrame):
             fg_color="transparent",
             text_color=COLORS["accent_blue"]
         )
-        self.session_timer_label.pack(side="right", padx=15, pady=0)
+        self.session_timer_label.pack(side="right", padx=(5, 15), pady=0)
+
+        self.latency_label = ctk.CTkLabel(
+            self.status_frame,
+            text="",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="transparent",
+            text_color=COLORS["text_secondary"]
+        )
+        self.latency_label.pack(side="right", padx=(5, 15), pady=0)
 
         self.session_timer_id = None
+        self.latency_timer_id = None
+        self.local_port = 10808  # Порт прокси для измерения latency
 
         # Вкладки
         self.tabview = ctk.CTkTabview(
@@ -711,6 +725,12 @@ class VPNMainWindow(ctk.CTkFrame):
             "local_port": self.spin_local_port.get(),
         }
 
+        # Сохранение порта для измерения latency
+        try:
+            self.local_port = int(self.spin_local_port.get())
+        except (ValueError, TypeError):
+            self.local_port = 10808
+
         # Блокировка кнопки
         self.btn_connect.configure(state="disabled", text="⏳ Подключение...")
 
@@ -752,6 +772,7 @@ class VPNMainWindow(ctk.CTkFrame):
             )
             self.session_timer_label.configure(text="⏱ 00:00:00")
             self.start_session_timer()
+            self.start_latency_timer()
         else:
             self.status_label.configure(
                 text="⏸ Статус: Остановлен",
@@ -765,6 +786,7 @@ class VPNMainWindow(ctk.CTkFrame):
                 hover_color="#27ae60"
             )
             self.stop_session_timer()
+            self.stop_latency_timer()
 
     def start_session_timer(self):
         """Запуск таймера сеанса"""
@@ -792,6 +814,49 @@ class VPNMainWindow(ctk.CTkFrame):
         minutes = (total_seconds % 3600) // 60
         seconds = total_seconds % 60
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+    def start_latency_timer(self):
+        """Запуск периодического измерения latency"""
+        self.measure_latency()
+        self.schedule_next_latency_measurement()
+
+    def stop_latency_timer(self):
+        """Остановка измерения latency"""
+        if self.latency_timer_id:
+            self.master.after_cancel(self.latency_timer_id)
+            self.latency_timer_id = None
+        self.latency_label.configure(text="")
+
+    def schedule_next_latency_measurement(self):
+        """Планирование следующего измерения latency (каждые 10 секунд)"""
+        if self.is_connected:
+            self.latency_timer_id = self.master.after(10000, self.measure_latency_and_schedule)
+
+    def measure_latency_and_schedule(self):
+        """Измерение latency и планирование следующего"""
+        self.measure_latency()
+        self.schedule_next_latency_measurement()
+
+    def measure_latency(self):
+        """Измерение задержки через VPN прокси (в отдельном потоке)"""
+        def _measure():
+            try:
+                result = subprocess.run(
+                    ['curl', '-x', f'socks5h://127.0.0.1:{self.local_port}',
+                     '-w', '%{time_appconnect}', '-o', '/dev/null',
+                     '-s', '--connect-timeout', '3',
+                     'https://1.1.1.1/cdn-cgi/trace'],
+                    capture_output=True, text=True, timeout=5
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    latency_ms = float(result.stdout) * 1000
+                    self.master.after(0, lambda: self.latency_label.configure(text=f"📶 {latency_ms:.0f} мс"))
+                else:
+                    self.master.after(0, lambda: self.latency_label.configure(text="📶 --"))
+            except Exception:
+                self.master.after(0, lambda: self.latency_label.configure(text="📶 --"))
+
+        threading.Thread(target=_measure, daemon=True).start()
 
     def import_from_link(self):
         """Импорт из VLESS ссылки"""
@@ -901,8 +966,94 @@ class VPNMainWindow(ctk.CTkFrame):
     def exit_app(self):
         """Выход из приложения с отключением прокси"""
         if self.is_connected:
-            if messagebox.askyesno("Выход", "VPN подключен. Отключиться и выйти?"):
-                self.controller.disconnect()
-                self.master.quit()
+            self.show_exit_confirm_dialog()
         else:
             self.master.quit()
+
+    def show_exit_confirm_dialog(self):
+        """Показ кастомного диалога подтверждения выхода в стиле GUI"""
+        # Центрирование
+        self.master.update_idletasks()
+        main_x = self.master.winfo_rootx()
+        main_y = self.master.winfo_rooty()
+        main_w = self.master.winfo_width()
+        main_h = self.master.winfo_height()
+        dialog_w = 420
+        dialog_h = 180
+        dialog_x = main_x + (main_w - dialog_w) // 2
+        dialog_y = main_y + (main_h - dialog_h) // 2
+
+        # Диалоговое окно
+        dialog = ctk.CTkToplevel(self.master)
+        dialog.title("")
+        dialog.geometry(f"{dialog_w}x{dialog_h}+{dialog_x}+{dialog_y}")
+        dialog.resizable(False, False)
+        dialog.attributes('-topmost', True)
+        dialog.configure(fg_color=COLORS["bg_primary"])
+
+        # Контейнер
+        container = ctk.CTkFrame(dialog, fg_color="transparent")
+        container.pack(fill="both", expand=True, padx=25, pady=20)
+
+        # Верхняя часть с иконкой и текстом
+        top_frame = ctk.CTkFrame(container, fg_color="transparent")
+        top_frame.pack(fill="x", pady=(5, 15))
+
+        ctk.CTkLabel(
+            top_frame,
+            text="⚠️",
+            font=ctk.CTkFont(size=26),
+            width=40
+        ).pack(side="left")
+
+        ctk.CTkLabel(
+            top_frame,
+            text="VPN подключение активно\nОтключиться и выйти?",
+            font=ctk.CTkFont(size=13),
+            text_color=COLORS["text_primary"],
+            justify="left"
+        ).pack(side="left", pady=8, padx=(5, 0))
+
+        # Кнопки
+        btn_frame = ctk.CTkFrame(container, fg_color="transparent")
+        btn_frame.pack(side="bottom", fill="x")
+
+        def on_cancel():
+            dialog.destroy()
+
+        def on_confirm():
+            try:
+                self.controller.disconnect()
+            except Exception:
+                pass
+            dialog.destroy()
+            self.master.quit()
+
+        ctk.CTkButton(
+            btn_frame,
+            text="Отмена",
+            command=on_cancel,
+            font=ctk.CTkFont(size=13),
+            fg_color=COLORS["bg_tertiary"],
+            hover_color=COLORS["border"],
+            text_color=COLORS["text_primary"],
+            border_color=COLORS["border"],
+            border_width=1,
+            corner_radius=8,
+            width=110,
+            height=38
+        ).pack(side="right", padx=(8, 0))
+
+        ctk.CTkButton(
+            btn_frame,
+            text="Выйти",
+            command=on_confirm,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=COLORS["danger"],
+            hover_color="#c0392b",
+            corner_radius=8,
+            width=110,
+            height=38
+        ).pack(side="right")
+
+        dialog.update()

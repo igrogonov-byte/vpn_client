@@ -37,6 +37,10 @@ def main():
     from vpn_client.controller import VPNController
     from vpn_client.gui.main_window_ctk import VPNMainWindow
 
+    # Установка темы ДО создания окна
+    ctk.set_appearance_mode("dark")
+    ctk.set_default_color_theme("blue")
+
     # Создание приложения
     app = ctk.CTk()
     app.title("VPN Client - VLESS Reality xhttp")
