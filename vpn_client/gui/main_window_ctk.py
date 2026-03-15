@@ -690,40 +690,40 @@ class VPNMainWindow(ctk.CTkFrame):
             corner_radius=12,
             border_width=1
         )
-        self.update_frame.pack(fill="x", pady=(0, 12))
+        self.update_frame.pack(fill="x", pady=(0, 10))
 
         ctk.CTkLabel(
             self.update_frame,
             text="🔄 Обновление Xray-core",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=ctk.CTkFont(size=13, weight="bold"),
             text_color=COLORS["text_primary"]
-        ).pack(pady=(12, 8))
+        ).pack(pady=(10, 6))
 
         # Информация о версии
         self.version_info_frame = ctk.CTkFrame(self.update_frame, fg_color="transparent")
-        self.version_info_frame.pack(fill="x", padx=20, pady=(0, 8))
+        self.version_info_frame.pack(fill="x", padx=20, pady=(0, 6))
 
         self.version_label = ctk.CTkLabel(
             self.version_info_frame,
             text="Версия: загрузка...",
-            font=ctk.CTkFont(size=11),
+            font=ctk.CTkFont(size=10),
             text_color=COLORS["text_secondary"]
         )
         self.version_label.pack(side="left")
 
         # Кнопки
         self.btn_update_frame = ctk.CTkFrame(self.update_frame, fg_color="transparent")
-        self.btn_update_frame.pack(fill="x", padx=20, pady=(0, 12))
+        self.btn_update_frame.pack(fill="x", padx=20, pady=(0, 10))
 
         self.btn_check_update = ctk.CTkButton(
             self.btn_update_frame,
             text="📥 Проверить обновления",
-            font=ctk.CTkFont(size=11, weight="bold"),
+            font=ctk.CTkFont(size=10, weight="bold"),
             fg_color=COLORS["accent_blue"],
             hover_color=COLORS["accent_blue_hover"],
             corner_radius=8,
             width=150,
-            height=32,
+            height=28,
             command=self.check_for_updates
         )
         self.btn_check_update.pack(side="left", padx=(0, 10))
@@ -731,12 +731,12 @@ class VPNMainWindow(ctk.CTkFrame):
         self.btn_install_update = ctk.CTkButton(
             self.btn_update_frame,
             text="⬇️ Установить",
-            font=ctk.CTkFont(size=11, weight="bold"),
+            font=ctk.CTkFont(size=10, weight="bold"),
             fg_color=COLORS["success"],
             hover_color="#27ae60",
             corner_radius=8,
             width=120,
-            height=32,
+            height=28,
             command=self.install_update,
             state="disabled"
         )
@@ -749,16 +749,16 @@ class VPNMainWindow(ctk.CTkFrame):
             fg_color=COLORS["bg_secondary"],
             progress_color=COLORS["accent_blue"]
         )
-        self.update_progress.pack(fill="x", padx=20, pady=(0, 8))
+        self.update_progress.pack(fill="x", padx=20, pady=(0, 6))
         self.update_progress.set(0)
 
         self.update_status_label = ctk.CTkLabel(
             self.update_frame,
             text="",
-            font=ctk.CTkFont(size=10),
+            font=ctk.CTkFont(size=9),
             text_color=COLORS["text_secondary"]
         )
-        self.update_status_label.pack(pady=(0, 12))
+        self.update_status_label.pack(pady=(0, 10))
 
     def create_logs_tab(self):
         """Вкладка логов"""
