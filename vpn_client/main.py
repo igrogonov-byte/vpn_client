@@ -26,7 +26,7 @@ def main():
     try:
         import customtkinter as ctk
         import pystray
-        from PIL import Image, ImageDraw
+        from PIL import Image
     except ImportError as e:
         error_file = os.path.join(os.path.dirname(__file__), 'ERROR.txt')
         with open(error_file, 'w', encoding='utf-8') as f:
@@ -44,8 +44,8 @@ def main():
     # Создание приложения
     app = ctk.CTk()
     app.title("VPN Client - VLESS Reality xhttp")
-    app.geometry("800x650")
-    app.minsize(600, 500)
+    app.geometry("840x683")
+    app.minsize(630, 525)
 
     # Создание контроллера
     controller = VPNController()
@@ -59,10 +59,8 @@ def main():
 
     def create_icon():
         """Создание иконки для трея"""
-        image = Image.new('RGB', (64, 64), '#4299e1')
-        draw = ImageDraw.Draw(image)
-        draw.text((8, 18), "VPN", fill='white', font_size=20)
-        return image
+        icon_path = os.path.join(os.path.dirname(__file__), "assets", "icons8-vpn-48.png")
+        return Image.open(icon_path)
 
     def on_show(icon, item):
         """Показать окно"""
