@@ -697,11 +697,11 @@ class VPNMainWindow(ctk.CTkFrame):
             text="🔄 Обновление Xray-core",
             font=ctk.CTkFont(size=13, weight="bold"),
             text_color=COLORS["text_primary"]
-        ).pack(pady=(10, 6))
+        ).pack(pady=(8, 4))
 
         # Информация о версии
         self.version_info_frame = ctk.CTkFrame(self.update_frame, fg_color="transparent")
-        self.version_info_frame.pack(fill="x", padx=20, pady=(0, 6))
+        self.version_info_frame.pack(fill="x", padx=20, pady=(0, 4))
 
         self.version_label = ctk.CTkLabel(
             self.version_info_frame,
@@ -713,7 +713,7 @@ class VPNMainWindow(ctk.CTkFrame):
 
         # Кнопки
         self.btn_update_frame = ctk.CTkFrame(self.update_frame, fg_color="transparent")
-        self.btn_update_frame.pack(fill="x", padx=20, pady=(0, 10))
+        self.btn_update_frame.pack(fill="x", padx=20, pady=(0, 8))
 
         self.btn_check_update = ctk.CTkButton(
             self.btn_update_frame,
@@ -758,7 +758,7 @@ class VPNMainWindow(ctk.CTkFrame):
             font=ctk.CTkFont(size=9),
             text_color=COLORS["text_secondary"]
         )
-        self.update_status_label.pack(pady=(0, 10))
+        self.update_status_label.pack(pady=(0, 8))
 
     def create_logs_tab(self):
         """Вкладка логов"""
