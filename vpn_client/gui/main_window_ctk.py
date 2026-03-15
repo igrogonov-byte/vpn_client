@@ -654,6 +654,34 @@ class VPNMainWindow(ctk.CTkFrame):
         )
         self.settings_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
+        # Системный прокси
+        self.proxy_frame = ctk.CTkFrame(
+            self.settings_frame,
+            fg_color=COLORS["bg_tertiary"],
+            border_color=COLORS["border"],
+            corner_radius=12,
+            border_width=1
+        )
+        self.proxy_frame.pack(fill="x", pady=(0, 15))
+
+        ctk.CTkLabel(
+            self.proxy_frame,
+            text="🌐 Системный прокси",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=COLORS["text_primary"]
+        ).pack(pady=(15, 10))
+
+        self.chk_system_proxy = ctk.CTkSwitch(
+            self.proxy_frame,
+            text="Включить системный прокси",
+            font=ctk.CTkFont(size=14),
+            text_color=COLORS["text_primary"],
+            fg_color=COLORS["accent_blue"],
+            border_color=COLORS["border"],
+            command=self.toggle_system_proxy
+        )
+        self.chk_system_proxy.pack(pady=(0, 15))
+
         # Обновление Xray-core
         self.update_frame = ctk.CTkFrame(
             self.settings_frame,
@@ -731,34 +759,6 @@ class VPNMainWindow(ctk.CTkFrame):
             text_color=COLORS["text_secondary"]
         )
         self.update_status_label.pack(pady=(0, 15))
-
-        # Системный прокси
-        self.proxy_frame = ctk.CTkFrame(
-            self.settings_frame,
-            fg_color=COLORS["bg_tertiary"],
-            border_color=COLORS["border"],
-            corner_radius=12,
-            border_width=1
-        )
-        self.proxy_frame.pack(fill="x", pady=(0, 15))
-
-        ctk.CTkLabel(
-            self.proxy_frame,
-            text="🌐 Системный прокси",
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color=COLORS["text_primary"]
-        ).pack(pady=(15, 10))
-
-        self.chk_system_proxy = ctk.CTkSwitch(
-            self.proxy_frame,
-            text="Включить системный прокси",
-            font=ctk.CTkFont(size=14),
-            text_color=COLORS["text_primary"],
-            fg_color=COLORS["accent_blue"],
-            border_color=COLORS["border"],
-            command=self.toggle_system_proxy
-        )
-        self.chk_system_proxy.pack(pady=(0, 15))
 
     def create_logs_tab(self):
         """Вкладка логов"""
