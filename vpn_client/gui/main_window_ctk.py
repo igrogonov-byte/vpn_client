@@ -758,7 +758,7 @@ class VPNMainWindow(ctk.CTkFrame):
             font=ctk.CTkFont(size=9),
             text_color=COLORS["text_secondary"]
         )
-        self.update_status_label.pack(pady=(0, 8))
+        self.update_status_label.pack(pady=(0, 4))
 
     def create_logs_tab(self):
         """Вкладка логов"""
