@@ -3,11 +3,13 @@ VPN Controller - связующий слой между GUI и ядром
 """
 import logging
 import time
+import threading
 from pathlib import Path
 from typing import Optional, Dict, Any, Callable
 
 from vpn_client.core.xray_manager import XrayManager
 from vpn_client.core.vless_config import create_vless_reality_xhttp, save_config
+from vpn_client.core.xray_updater import get_updater, XrayUpdater
 from vpn_client.utils.proxy import SystemProxy
 from vpn_client.utils.autostart import AutoStart
 
@@ -21,7 +23,8 @@ class VPNController:
     __slots__ = [
         'config_dir', 'config_file', 'xray_manager', 'system_proxy',
         'autostart', 'current_config', 'use_system_proxy',
-        'on_status_change', 'on_log'
+        'on_status_change', 'on_log', 'on_update_available',
+        'xray_updater', '_update_check_thread'
     ]
 
     def __init__(self, config_dir: Optional[str] = None):
@@ -33,6 +36,7 @@ class VPNController:
         self.xray_manager: Optional[XrayManager] = None
         self.system_proxy = SystemProxy()
         self.autostart = AutoStart("VPNClient")
+        self.xray_updater: Optional[XrayUpdater] = None
 
         self.current_config: Optional[Dict[str, Any]] = None
         self.use_system_proxy = True
@@ -40,6 +44,10 @@ class VPNController:
         # Callbacks
         self.on_status_change: Optional[Callable[[bool], None]] = None
         self.on_log: Optional[Callable[[str], None]] = None
+        self.on_update_available: Optional[Callable[[Dict[str, Any]], None]] = None
+        
+        # Запуск фоновой проверки обновлений
+        self._start_update_check()
 
     def _get_default_config_dir(self) -> Path:
         import sys
@@ -231,3 +239,63 @@ class VPNController:
     def _on_xray_log(self, message: str):
         if self.on_log:
             self.on_log(message)
+
+    # Методы обновления Xray-core
+    
+    def _start_update_check(self):
+        """Запустить фоновую проверку обновлений"""
+        def check():
+            try:
+                self.xray_updater = get_updater()
+                self.xray_updater.on_update_available = self._on_update_found
+                update_info = self.xray_updater.check_for_updates(force=False)
+                if update_info and self.on_update_available:
+                    # Вызываем callback в главном потоке если возможно
+                    self.on_update_available(update_info)
+            except Exception as e:
+                logger.debug(f"Ошибка проверки обновлений: {e}")
+        
+        self._update_check_thread = threading.Thread(target=check, daemon=True)
+        self._update_check_thread.start()
+    
+    def _on_update_found(self, update_info: Dict[str, Any]):
+        """Вызывается когда найдено обновление"""
+        logger.info(f"Доступно обновление Xray: {update_info.get('current_version')} → {update_info.get('latest_version')}")
+    
+    def check_for_updates(self, force: bool = False) -> Optional[Dict[str, Any]]:
+        """
+        Проверить наличие обновлений Xray-core
+        
+        Args:
+            force: Принудительная проверка (игнорировать интервал)
+        
+        Returns:
+            Информация об обновлении или None
+        """
+        if not self.xray_updater:
+            self.xray_updater = get_updater()
+            self.xray_updater.on_update_available = self._on_update_found
+        
+        return self.xray_updater.check_for_updates(force=force)
+    
+    def get_xray_version(self) -> Optional[str]:
+        """Получить текущую версию Xray-core"""
+        if not self.xray_updater:
+            self.xray_updater = get_updater()
+        return self.xray_updater.get_current_version() or self.xray_updater.get_binary_version()
+    
+    def download_update(self, update_info: Dict[str, Any],
+                        progress_callback: Optional[callable] = None) -> bool:
+        """
+        Скачать и установить обновление Xray-core
+        
+        Args:
+            update_info: Информация об обновлении
+            progress_callback: Callback прогресса (downloaded, total)
+        
+        Returns:
+            True если успешно
+        """
+        if not self.xray_updater:
+            self.xray_updater = get_updater()
+        return self.xray_updater.download_update(update_info, progress_callback)

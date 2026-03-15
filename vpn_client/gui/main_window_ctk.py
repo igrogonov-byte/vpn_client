@@ -42,6 +42,7 @@ class VPNMainWindow(ctk.CTkFrame):
 
         # Подключение callback'ов
         self.controller.on_log = self.on_log
+        self.controller.on_update_available = self.on_update_available_auto
 
         # Загрузка сохранённых настроек
         self.load_settings()
@@ -49,6 +50,35 @@ class VPNMainWindow(ctk.CTkFrame):
         # Автозапуск прокси если указано
         if self.auto_start_proxy:
             self.master.after(1000, self.auto_enable_proxy)
+        
+        # Загрузка версии Xray
+        self.master.after(500, self.load_xray_version)
+    
+    def on_update_available_auto(self, update_info):
+        """Автоматическое уведомление о доступном обновлении (фоновая проверка)"""
+        def notify():
+            current = update_info.get('current_version', '?')
+            latest = update_info.get('latest_version', '?')
+            self.version_label.configure(
+                text=f"Версия: {current} → Доступна {latest}",
+                text_color=COLORS["danger"]
+            )
+            self.btn_install_update.configure(state="normal")
+            self._pending_update = update_info
+            self.append_log(f"🔄 Доступно обновление Xray: {current} → {latest}")
+        # Выполняем в главном потоке
+        self.master.after(0, notify)
+    
+    def load_xray_version(self):
+        """Загрузка информации о текущей версии Xray"""
+        try:
+            version = self.controller.get_xray_version()
+            if version:
+                self.version_label.configure(text=f"Версия: {version}")
+            else:
+                self.version_label.configure(text="Версия: не определена")
+        except Exception as e:
+            self.version_label.configure(text="Версия: неизвестно")
 
     def auto_enable_proxy(self):
         """Автоматическое включение системного прокси"""
@@ -624,6 +654,84 @@ class VPNMainWindow(ctk.CTkFrame):
         )
         self.settings_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
+        # Обновление Xray-core
+        self.update_frame = ctk.CTkFrame(
+            self.settings_frame,
+            fg_color=COLORS["bg_tertiary"],
+            border_color=COLORS["border"],
+            corner_radius=12,
+            border_width=1
+        )
+        self.update_frame.pack(fill="x", pady=(0, 15))
+
+        ctk.CTkLabel(
+            self.update_frame,
+            text="🔄 Обновление Xray-core",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=COLORS["text_primary"]
+        ).pack(pady=(15, 10))
+
+        # Информация о версии
+        self.version_info_frame = ctk.CTkFrame(self.update_frame, fg_color="transparent")
+        self.version_info_frame.pack(fill="x", padx=20, pady=(0, 10))
+
+        self.version_label = ctk.CTkLabel(
+            self.version_info_frame,
+            text="Версия: загрузка...",
+            font=ctk.CTkFont(size=13),
+            text_color=COLORS["text_secondary"]
+        )
+        self.version_label.pack(side="left")
+
+        # Кнопки
+        self.btn_update_frame = ctk.CTkFrame(self.update_frame, fg_color="transparent")
+        self.btn_update_frame.pack(fill="x", padx=20, pady=(0, 15))
+
+        self.btn_check_update = ctk.CTkButton(
+            self.btn_update_frame,
+            text="📥 Проверить обновления",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=COLORS["accent_blue"],
+            hover_color=COLORS["accent_blue_hover"],
+            corner_radius=10,
+            width=180,
+            height=38,
+            command=self.check_for_updates
+        )
+        self.btn_check_update.pack(side="left", padx=(0, 10))
+
+        self.btn_install_update = ctk.CTkButton(
+            self.btn_update_frame,
+            text="⬇️ Установить",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=COLORS["success"],
+            hover_color="#27ae60",
+            corner_radius=10,
+            width=140,
+            height=38,
+            command=self.install_update,
+            state="disabled"
+        )
+        self.btn_install_update.pack(side="left")
+
+        # Прогресс бар
+        self.update_progress = ctk.CTkProgressBar(
+            self.update_frame,
+            mode="determinate",
+            fg_color=COLORS["bg_secondary"],
+            progress_color=COLORS["accent_blue"]
+        )
+        self.update_progress.pack(fill="x", padx=20, pady=(0, 10))
+        self.update_progress.set(0)
+
+        self.update_status_label = ctk.CTkLabel(
+            self.update_frame,
+            text="",
+            font=ctk.CTkFont(size=11),
+            text_color=COLORS["text_secondary"]
+        )
+        self.update_status_label.pack(pady=(0, 15))
+
         # Системный прокси
         self.proxy_frame = ctk.CTkFrame(
             self.settings_frame,
@@ -950,6 +1058,117 @@ class VPNMainWindow(ctk.CTkFrame):
         enabled = self.chk_system_proxy.get() == 1
         self.controller.set_system_proxy(enabled)
         self.append_log(f"Системный прокси {'включен' if enabled else 'отключен'}")
+
+    def check_for_updates(self):
+        """Проверка обновлений Xray-core"""
+        self.btn_check_update.configure(state="disabled", text="⏳ Проверка...")
+        self.update_status_label.configure(text="")
+        
+        def check_thread():
+            try:
+                update_info = self.controller.check_for_updates(force=True)
+                
+                # Обновляем UI в главном потоке
+                self.master.after(0, lambda: self.btn_check_update.configure(
+                    state="normal", text="📥 Проверить обновления"
+                ))
+                
+                if update_info:
+                    current = update_info.get('current_version', '?')
+                    latest = update_info.get('latest_version', '?')
+                    self.version_label.configure(
+                        text=f"Версия: {current} → Доступна {latest}",
+                        text_color=COLORS["warning"] if 'warning' in COLORS else COLORS["danger"]
+                    )
+                    self.update_status_label.configure(
+                        text=f"Доступно обновление: {current} → {latest}"
+                    )
+                    self.btn_install_update.configure(state="normal")
+                    self._pending_update = update_info
+                    self.append_log(f"🔄 Доступно обновление Xray: {current} → {latest}")
+                else:
+                    self.version_label.configure(text="Версия: актуальна")
+                    self.update_status_label.configure(text="Установлена последняя версия")
+                    self.btn_install_update.configure(state="disabled")
+                    self._pending_update = None
+                    self.append_log("✅ Версия Xray актуальна")
+                    
+            except Exception as e:
+                self.master.after(0, lambda: (
+                    self.btn_check_update.configure(state="normal", text="📥 Проверить обновления"),
+                    self.update_status_label.configure(text=f"Ошибка: {e}")
+                ))
+                self.append_log(f"❌ Ошибка проверки обновлений: {e}")
+        
+        thread = threading.Thread(target=check_thread, daemon=True)
+        thread.start()
+    
+    def install_update(self):
+        """Установка обновления Xray-core"""
+        if not hasattr(self, '_pending_update') or not self._pending_update:
+            messagebox.showwarning("Обновление", "Сначала проверьте обновления")
+            return
+        
+        if not messagebox.askyesno(
+            "Подтверждение",
+            f"Установить обновление Xray-core?\n\n"
+            f"Текущая версия: {self._pending_update.get('current_version', '?')}\n"
+            f"Новая версия: {self._pending_update.get('latest_version', '?')}\n\n"
+            "Приложение будет перезапущено после установки."
+        ):
+            return
+        
+        self.btn_install_update.configure(state="disabled", text="⏳ Загрузка...")
+        self.btn_check_update.configure(state="disabled")
+        self.update_progress.set(0)
+        
+        def progress_callback(downloaded, total):
+            """Обновление прогресса"""
+            if total > 0:
+                percent = (downloaded / total) * 100
+                mb_downloaded = downloaded / (1024 * 1024)
+                mb_total = total / (1024 * 1024)
+                self.master.after(0, lambda: (
+                    self.update_progress.set(percent / 100),
+                    self.update_status_label.configure(
+                        text=f"Загрузка: {mb_downloaded:.1f} / {mb_total:.1f} MB ({percent:.0f}%)"
+                    )
+                ))
+        
+        def install_thread():
+            try:
+                success = self.controller.download_update(self._pending_update, progress_callback)
+                
+                self.master.after(0, lambda: (
+                    self.btn_install_update.configure(state="normal", text="⬇️ Установить"),
+                    self.btn_check_update.configure(state="normal")
+                ))
+                
+                if success:
+                    self.update_status_label.configure(text="✅ Обновление установлено!")
+                    self.version_label.configure(text="Версия: обновлена")
+                    self.btn_install_update.configure(state="disabled")
+                    self._pending_update = None
+                    self.append_log("✅ Xray-core обновлён")
+                    
+                    # Предложение перезапуска
+                    if messagebox.askyesno("Обновление установлено", 
+                        "Xray-core обновлён. Перезапустить приложение?"):
+                        self.master.after(500, self.master.quit)
+                else:
+                    self.update_status_label.configure(text="❌ Ошибка установки")
+                    self.append_log("❌ Ошибка установки обновления")
+                    
+            except Exception as e:
+                self.master.after(0, lambda: (
+                    self.btn_install_update.configure(state="normal", text="⬇️ Установить"),
+                    self.btn_check_update.configure(state="normal"),
+                    self.update_status_label.configure(text=f"❌ Ошибка: {e}")
+                ))
+                self.append_log(f"❌ Ошибка установки: {e}")
+        
+        thread = threading.Thread(target=install_thread, daemon=True)
+        thread.start()
 
     def append_log(self, message: str):
         """Добавление сообщения в лог"""
