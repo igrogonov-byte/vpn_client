@@ -1,35 +1,68 @@
 """
 Менеджер Xray-core: запуск, остановка, управление процессом
-Оптимизировано для работы с памятью
+Оптимизированная версия с queue, poll, batch-обработкой и контекстным менеджером
 """
 import os
 import sys
 import subprocess
 import threading
 import logging
+import select
+import time
 from pathlib import Path
-from typing import Optional, Callable
+from queue import Queue, Empty
+from typing import Optional, Callable, List
 
 logger = logging.getLogger('vpn_client.xray_manager')
+
+# Кэш пути к бинарнику на уровне модуля
+_binary_cache: Optional[str] = None
 
 
 class XrayManager:
     """Управление Xray-core процессом
-    __slots__ для экономии памяти
+    
+    Оптимизации:
+    - __slots__ для экономии памяти
+    - queue.Queue для потокобезопасной передачи логов
+    - select.poll вместо select на Linux
+    - batch-обработка логов
+    - rate limiting для защиты от flood
+    - контекстный менеджер для автоматической очистки
     """
     __slots__ = [
         'config_path', 'binary_path', 'process', '_lock',
-        '_output_thread', '_stop_event',
-        'on_start', 'on_stop', 'on_error', 'on_log'
+        '_output_thread', '_stop_event', '_log_queue', '_log_worker',
+        'on_start', 'on_stop', 'on_error', 'on_log',
+        '_last_log_time', '_log_rate_limit', '_pending_logs'
     ]
 
-    def __init__(self, config_path: str, binary_path: Optional[str] = None):
+    # Константы
+    LOG_RATE_LIMIT = 0.05  # Мин. интервал между логами (50ms ~ 20 логов/сек)
+    LOG_BATCH_SIZE = 5     # Размер пачки для batch-отправки
+    LOG_QUEUE_TIMEOUT = 0.1  # Таймаут ожидания логов из очереди
+
+    def __init__(
+        self,
+        config_path: str,
+        binary_path: Optional[str] = None,
+        log_rate_limit: float = LOG_RATE_LIMIT
+    ):
         self.config_path = Path(config_path)
-        self.binary_path = binary_path or self._find_binary()
+        self.binary_path = binary_path or self._find_binary_cached()
         self.process: Optional[subprocess.Popen] = None
         self._lock = threading.Lock()
         self._output_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
+        
+        # Очередь для потокобезопасной передачи логов
+        self._log_queue: Queue = Queue(maxsize=1000)
+        self._log_worker: Optional[threading.Thread] = None
+        
+        # Rate limiting для логов
+        self._last_log_time: float = 0
+        self._log_rate_limit: float = log_rate_limit
+        self._pending_logs: List[str] = []
 
         # Callbacks
         self.on_start: Optional[Callable] = None
@@ -37,8 +70,13 @@ class XrayManager:
         self.on_error: Optional[Callable[[str], None]] = None
         self.on_log: Optional[Callable[[str], None]] = None
 
-    def _find_binary(self) -> str:
-        """Поиск бинарника Xray"""
+    @classmethod
+    def _find_binary_cached(cls) -> str:
+        """Поиск бинарника Xray с кэшированием"""
+        global _binary_cache
+        if _binary_cache:
+            return _binary_cache
+
         binaries_dir = Path(__file__).parent.parent / "binaries"
         if binaries_dir.exists():
             if sys.platform == "win32":
@@ -46,98 +84,160 @@ class XrayManager:
             else:
                 binary = binaries_dir / "xray"
             if binary.exists():
-                return str(binary)
+                _binary_cache = str(binary)
+                return _binary_cache
 
         import shutil
         xray_path = shutil.which("xray")
         if xray_path:
-            return xray_path
+            _binary_cache = xray_path
+            return _binary_cache
 
         raise FileNotFoundError("Xray-core не найден")
 
-    def _read_output(self):
-        """Чтение вывода процесса в фоне - оптимизировано"""
-        logger = logging.getLogger('vpn_client.xray_read')
-        logger.info("_read_output запущен")
-        
-        if not self.process:
-            logger.warning("process = None, выходим")
-            return
+    def _find_binary(self) -> str:
+        """Поиск бинарника Xray (без кэша, для совместимости)"""
+        return self._find_binary_cached()
 
-        # Используем select для неблокирующего чтения на Linux/macOS
-        use_select = sys.platform != "win32"
-        if use_select:
-            import select
+    def _get_process_safe(self) -> Optional[subprocess.Popen]:
+        """Безопасное получение процесса с блокировкой"""
+        with self._lock:
+            return self.process
 
-        buffer = []
-        max_buffer_size = 50  # Уменьшили буфер
-        check_interval = 0.05  # 50ms между проверками
-        read_count = 0
+    def _start_log_worker(self):
+        """Запуск воркера для обработки логов из очереди"""
+        self._log_worker = threading.Thread(target=self._process_log_queue, daemon=True)
+        self._log_worker.start()
+
+    def _process_log_queue(self):
+        """Обработка очереди логов с rate limiting и batch-отправкой"""
+        log = logging.getLogger('vpn_client.xray_log_worker')
+        batch: List[str] = []
         
         while not self._stop_event.is_set():
             try:
-                read_count += 1
+                # Ждём лог из очереди
+                try:
+                    message = self._log_queue.get(timeout=self.LOG_QUEUE_TIMEOUT)
+                except Empty:
+                    # Очередь пуста, отправляем накопленное
+                    if batch and self.on_log:
+                        self._flush_batch(batch)
+                        batch.clear()
+                    continue
+
+                # Добавляем в пачку
+                batch.append(message)
                 
+                # Если пачка полная - отправляем
+                if len(batch) >= self.LOG_BATCH_SIZE:
+                    if self.on_log:
+                        self._flush_batch(batch)
+                    batch.clear()
+
+            except Exception as e:
+                log.error(f"Ошибка в log worker: {e}", exc_info=True)
+                break
+
+        # Отправляем остаток
+        if batch and self.on_log:
+            self._flush_batch(batch)
+
+    def _flush_batch(self, batch: List[str]):
+        """Отправка пачки логов с rate limiting"""
+        current_time = time.monotonic()
+        
+        for message in batch:
+            # Rate limiting
+            elapsed = current_time - self._last_log_time
+            if elapsed < self._log_rate_limit:
+                time.sleep(self._log_rate_limit - elapsed)
+                current_time = time.monotonic()
+            
+            self.on_log(message)
+            self._last_log_time = current_time
+
+    def _read_output(self):
+        """Чтение вывода процесса в фоне с отправкой в очередь"""
+        log = logging.getLogger('vpn_client.xray_read')
+        log.info("_read_output запущен")
+
+        # Получаем процесс один раз в начале
+        process = self._get_process_safe()
+        if not process or process.stdout is None:
+            log.warning("process или stdout = None, выходим")
+            return
+
+        # Используем poll для эффективного ожидания на Linux/macOS
+        use_poll = sys.platform != "win32"
+        poller = None
+        if use_poll:
+            poller = select.poll()
+            poller.register(process.stdout, select.POLLIN)
+
+        check_interval = 50  # 50ms для poll
+
+        while not self._stop_event.is_set():
+            try:
                 # Проверяем, жив ли процесс
-                if self.process.poll() is not None:
-                    logger.info(f"Процесс завершился (poll={self.process.poll()}), читаем остаток")
-                    # Процесс завершился, читаем остаток
+                exit_code = process.poll()
+                if exit_code is not None:
+                    log.info(f"Процесс завершился (код={exit_code}), читаем остаток")
                     try:
-                        remaining = self.process.stdout.read()
+                        remaining = process.stdout.read()
                         if remaining:
                             for line in remaining.decode('utf-8', errors='replace').splitlines():
-                                if self.on_log:
-                                    self.on_log(line)
+                                self._log_queue.put(line)
                     except Exception as e:
-                        logger.error(f"Ошибка чтения остатка: {e}")
+                        log.error(f"Ошибка чтения остатка: {e}")
                     break
-                
-                # Неблокирующее чтение на Linux/macOS
-                if use_select:
-                    import select
-                    ready, _, _ = select.select([self.process.stdout], [], [], check_interval)
-                    if not ready:
-                        # Логируем каждые 1000 итераций
-                        if read_count % 1000 == 0:
-                            logger.debug(f"read_count={read_count}, nothing to read")
+
+                # Ожидание данных через poll (Linux/macOS)
+                if use_poll and poller:
+                    try:
+                        events = poller.poll(check_interval)
+                    except (ValueError, OSError):
+                        # stdout закрыт
+                        break
+                    if not events:
                         continue
-                
-                # Читаем одну строку
-                line = self.process.stdout.readline()
-                if not line:
-                    logger.info("Получена пустая строка, выходим")
+
+                # Читаем доступные данные
+                try:
+                    line = process.stdout.readline()
+                except (BrokenPipeError, OSError) as e:
+                    log.warning(f"Ошибка чтения stdout: {e}")
                     break
-                
+
+                if not line:
+                    log.info("Получена пустая строка, выходим")
+                    break
+
                 decoded = line.decode('utf-8', errors='replace').strip()
-                if decoded and self.on_log:
+                if decoded:
                     # Ограничиваем размер сообщения
                     if len(decoded) > 500:
                         decoded = decoded[:500] + "..."
-                    self.on_log(decoded)
-                    
-                    # Добавляем в буфер
-                    buffer.append(decoded)
-                    
-                    # Очищаем буфер периодически (не каждый цикл!)
-                    if len(buffer) > max_buffer_size:
-                        buffer.clear()
-                        # gc.collect() вызываем редко - это дорогая операция
-                    
+                    # Отправляем в очередь
+                    try:
+                        self._log_queue.put_nowait(decoded)
+                    except Exception:
+                        # Очередь переполнена, пропускаем лог
+                        pass
+
             except Exception as e:
-                logger.error(f"Исключение в цикле чтения: {e}", exc_info=True)
+                log.error(f"Исключение в цикле чтения: {e}", exc_info=True)
                 break
-        
-        # Финальная очистка
-        logger.info(f"_read_output завершён (прочитано {read_count} раз)")
-        buffer.clear()
+
+        log.info("_read_output завершён")
 
     def start(self) -> bool:
         """Запуск Xray-core"""
         logger.info("start() вызван")
-        
+
         with self._lock:
             logger.debug("Получили lock")
-            
+
             if self.process and self.process.poll() is None:
                 logger.warning("Xray уже запущен")
                 if self.on_log:
@@ -165,6 +265,11 @@ class XrayManager:
                 logger.info(f"Процесс запущен, PID={self.process.pid}")
 
                 self._stop_event.clear()
+                
+                # Запускаем воркер логов
+                self._start_log_worker()
+                
+                # Запускаем поток чтения вывода
                 self._output_thread = threading.Thread(target=self._read_output, daemon=True)
                 logger.info("Запускаем поток чтения...")
                 self._output_thread.start()
@@ -175,7 +280,7 @@ class XrayManager:
 
                 if self.on_log:
                     self.on_log("Xray запущен")
-                
+
                 logger.info("start() завершён успешно")
                 return True
 
@@ -189,45 +294,62 @@ class XrayManager:
     def stop(self, timeout: float = 5.0) -> bool:
         """Остановка Xray-core"""
         logger.info(f"stop() вызван, timeout={timeout}")
-        
+
         with self._lock:
             logger.debug("Получили lock в stop()")
-            
+
             if not self.process:
                 logger.debug("process = None, возвращаем True")
                 return True
+
+            process = self.process
 
             try:
                 if self.on_log:
                     self.on_log("Остановка Xray...")
 
-                # Сигнал остановки
+                # Сигнал остановки всем потокам
                 logger.info("Устанавливаем _stop_event")
                 self._stop_event.set()
 
-                # Ждём завершения потока
+                # Ждём завершения потока чтения
                 if self._output_thread and self._output_thread.is_alive():
                     logger.info("Ждём завершения потока чтения...")
                     self._output_thread.join(timeout=2.0)
-                    logger.info(f"Поток завершён, is_alive={self._output_thread.is_alive()}")
+                    logger.info(f"Поток чтения завершён, is_alive={self._output_thread.is_alive()}")
 
-                # Принудительно читаем остаток
+                # Ждём завершения log worker
+                if self._log_worker and self._log_worker.is_alive():
+                    logger.info("Ждём завершения log worker...")
+                    self._log_worker.join(timeout=1.0)
+                    logger.info(f"Log worker завершён, is_alive={self._log_worker.is_alive()}")
+
+                # Закрываем stdout если открыт
                 try:
-                    self.process.stdout.close()
+                    if process.stdout:
+                        process.stdout.close()
                 except Exception as e:
                     logger.warning(f"Не удалось закрыть stdout: {e}")
 
                 # Останавливаем процесс
                 logger.info(f"Останавливаем процесс (terminate)...")
-                self.process.terminate()
+                try:
+                    process.terminate()
+                except OSError:
+                    # Процесс уже завершён
+                    pass
+
                 try:
                     logger.info(f"Ждём завершения процесса (timeout={timeout})...")
-                    self.process.wait(timeout=timeout)
-                    logger.info(f"Процесс завершён с кодом {self.process.returncode}")
+                    process.wait(timeout=timeout)
+                    logger.info(f"Процесс завершён с кодом {process.returncode}")
                 except subprocess.TimeoutExpired:
                     logger.warning("Таймаут, убиваем процесс")
-                    self.process.kill()
-                    self.process.wait()
+                    try:
+                        process.kill()
+                        process.wait()
+                    except OSError:
+                        pass
 
                 self.process = None
                 logger.info("process = None")
@@ -237,7 +359,7 @@ class XrayManager:
 
                 if self.on_log:
                     self.on_log("Xray остановлен")
-                
+
                 logger.info("stop() завершён успешно")
                 return True
 
@@ -250,22 +372,34 @@ class XrayManager:
 
     def is_running(self) -> bool:
         """Проверка статуса"""
-        if not self.process:
+        process = self._get_process_safe()
+        if not process:
             return False
-        return self.process.poll() is None
+        return process.poll() is None
 
     def get_stats(self) -> dict:
         """Получение статистики"""
+        process = self._get_process_safe()
         return {
             "running": self.is_running(),
-            "pid": self.process.pid if self.process else None,
+            "pid": process.pid if process else None,
             "uptime": None
         }
-    
+
+    # Контекстный менеджер
+    def __enter__(self):
+        """Вход в контекстный менеджер"""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Выход из контекстного менеджера - автоматическая остановка"""
+        self.stop()
+        return False  # Не подавляем исключения
+
     def __del__(self):
         """Деструктор - гарантированная очистка"""
         try:
-            if self.process and self.process.poll() is None:
+            if hasattr(self, 'process') and self.process and self.process.poll() is None:
                 self.stop()
         except Exception:
             pass
