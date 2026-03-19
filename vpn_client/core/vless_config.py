@@ -113,6 +113,14 @@ def create_vless_reality_xhttp(
             "access": "",
             "error": ""
         },
+        "api": {
+            "tag": "api",
+            "services": [
+                "HandlerService",
+                "StatsService"
+            ]
+        },
+        "stats": {},  # Включить статистику
         "dns": {
             "servers": [
                 "1.1.1.1",
@@ -144,6 +152,15 @@ def create_vless_reality_xhttp(
                 "settings": {
                     "allowTransparent": False
                 }
+            },
+            {
+                "tag": "api",
+                "port": 18888,
+                "listen": "127.0.0.1",
+                "protocol": "dokodemo-door",
+                "settings": {
+                    "address": "127.0.0.1"
+                }
             }
         ],
         "outbounds": [
@@ -155,11 +172,20 @@ def create_vless_reality_xhttp(
             {
                 "protocol": "blackhole",
                 "tag": "block"
+            },
+            {
+                "protocol": "blackhole",
+                "tag": "api"
             }
         ],
         "routing": {
             "domainStrategy": "AsIs",
             "rules": [
+                {
+                    "type": "field",
+                    "inboundTag": ["api"],
+                    "outboundTag": "api"
+                },
                 {
                     "type": "field",
                     "ip": ["geoip:private"],

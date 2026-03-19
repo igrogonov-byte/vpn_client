@@ -110,6 +110,23 @@ class VPNController:
             if self.on_log:
                 self.on_log("✅ Xray работает")
 
+            # Проверка реального подключения через HTTP GET к 1.1.1.1:80
+            if self.on_log:
+                self.on_log("⏳ Проверка подключения к интернету...")
+
+            socks_port = int(config_data.get("local_port", 10808))
+
+            if not self._check_proxy_connection(socks_port, timeout=6):
+                error = "Сервер недоступен или нет связи с интернетом"
+                if self.on_log:
+                    self.on_log(f"❌ {error}")
+                self.disconnect()
+                raise Exception(error)
+
+            if self.on_log:
+                self.on_log("✅ Подключение к интернету успешно")
+                self.on_log("✅ VPN подключение установлено")
+
             if self.use_system_proxy:
                 # Преобразование порта в int
                 try:
@@ -134,7 +151,10 @@ class VPNController:
         except Exception as e:
             if self.on_log:
                 self.on_log(f"❌ Ошибка: {e}")
-            self.disconnect()
+            # Отключаем только если Xray был запущен и работает
+            # (не отключаем если ошибка была до запуска)
+            if self.xray_manager is not None and self.xray_manager.is_running():
+                self.disconnect()
             return False
 
     def disconnect(self) -> bool:
@@ -179,6 +199,31 @@ class VPNController:
         if self.xray_manager:
             return self.xray_manager.get_stats()
         return {"running": False, "pid": None, "uptime": None}
+
+    def get_connection_info(self) -> Dict[str, Any]:
+        """
+        Получение информации о подключении из Xray
+
+        Returns:
+            Dict с информацией:
+            - 'active': bool - активно ли подключение
+            - 'error': str - последняя ошибка
+            - 'error_count': int - количество ошибок
+            - 'connection_count': int - количество подключений
+            - 'healthy': bool - здоровье подключения
+        """
+        if not self.xray_manager:
+            return {
+                'active': False,
+                'error': None,
+                'error_count': 0,
+                'connection_count': 0,
+                'healthy': False
+            }
+
+        info = self.xray_manager.get_connection_info()
+        info['healthy'] = self.xray_manager.is_connection_healthy()
+        return info
 
     def set_system_proxy(self, enabled: bool, port: Optional[int] = None) -> bool:
         self.use_system_proxy = enabled
@@ -239,6 +284,89 @@ class VPNController:
     def _on_xray_log(self, message: str):
         if self.on_log:
             self.on_log(message)
+
+    def _check_proxy_connection(self, socks_port: int, timeout: int = 6) -> bool:
+        """
+        Проверка подключения через SOCKS прокси с HTTP GET запросом к 1.1.1.1:80
+
+        Args:
+            socks_port: Порт SOCKS прокси
+            timeout: Таймаут проверки в секундах
+
+        Returns:
+            True если подключение работает, False если нет
+        """
+        import socket
+
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(timeout)
+
+            # 1. Подключаемся к локальному SOCKS прокси
+            sock.connect(('127.0.0.1', socks_port))
+
+            # 2. SOCKS5 handshake
+            sock.sendall(b'\x05\x01\x00')
+            response = sock.recv(2)
+
+            if len(response) != 2 or response[0] != 5:
+                sock.close()
+                return False
+
+            # 3. CONNECT запрос к 1.1.1.1:80 (Cloudflare HTTP)
+            target_ip = bytes([1, 1, 1, 1])
+            target_port = bytes([0, 80])  # 80 = 0x0050
+            connect_request = b'\x05\x01\x00\x01' + target_ip + target_port
+            sock.sendall(connect_request)
+
+            # 4. Получаем ответ SOCKS
+            response = sock.recv(10)
+            if len(response) < 10:
+                sock.close()
+                return False
+
+            # 5. Проверяем статус SOCKS
+            socks_status = response[1]
+            if socks_status != 0:
+                sock.close()
+                return False
+
+            # 6. CONNECT успешен — отправляем HTTP GET запрос
+            #    Cloudflare всегда отвечает на HTTP запросы
+            http_request = (
+                b"GET http://1.1.1.1/ HTTP/1.1\r\n"
+                b"Host: 1.1.1.1\r\n"
+                b"Connection: close\r\n"
+                b"User-Agent: Mozilla/5.0\r\n"
+                b"\r\n"
+            )
+            sock.sendall(http_request)
+
+            # 7. Ждём ответ от сервера (таймаут 3 сек)
+            sock.settimeout(3)
+            try:
+                data = sock.recv(1024)
+                sock.close()
+
+                # Cloudflare всегда возвращает HTTP ответ (даже 403/404)
+                # Если получили данные начинающиеся с HTTP/ — соединение работает
+                if data and data.startswith(b"HTTP/"):
+                    return True
+
+                # Пустой ответ или нет HTTP — соединение не работает
+                return False
+
+            except socket.timeout:
+                # Таймаут — сервер не ответил на HTTP запрос
+                sock.close()
+                return False
+
+        except socket.timeout:
+            return False
+        except socket.error:
+            return False
+        except Exception:
+            return False
 
     # Методы обновления Xray-core
     

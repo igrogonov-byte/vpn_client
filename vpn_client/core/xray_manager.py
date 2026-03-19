@@ -34,13 +34,46 @@ class XrayManager:
         'config_path', 'binary_path', 'process', '_lock',
         '_output_thread', '_stop_event', '_log_queue', '_log_worker',
         'on_start', 'on_stop', 'on_error', 'on_log',
-        '_last_log_time', '_log_rate_limit', '_pending_logs'
+        '_last_log_time', '_log_rate_limit', '_pending_logs',
+        '_connection_count', '_error_count', '_last_error', '_connection_active'
     ]
 
     # Константы
     LOG_RATE_LIMIT = 0.05  # Мин. интервал между логами (50ms ~ 20 логов/сек)
     LOG_BATCH_SIZE = 5     # Размер пачки для batch-отправки
     LOG_QUEUE_TIMEOUT = 0.1  # Таймаут ожидания логов из очереди
+
+    # Паттерны ошибок подключения Xray
+    CONNECTION_ERROR_PATTERNS = [
+        "failed to dial",
+        "context deadline exceeded",
+        "connection refused",
+        "no route to host",
+        "connection timed out",
+        "i/o timeout",
+        "eof",
+        "reset by peer",
+        "temporary failure in name resolution",
+        "server misbehaving",
+        "unable to dial",
+        "dial tcp",
+        "xray: connection failed",
+        "read: connection reset",
+        "write: broken pipe",
+        "proxy: failed to connect",
+        "remote error: tls",
+        "invalid argument",
+        "connection aborted",
+        "flow read error",
+        "socks: connection closed",
+    ]
+
+    # Паттерны успешного подключения
+    CONNECTION_SUCCESS_PATTERNS = [
+        "accepted",  # Xray принял соединение
+        "started",   # Сервис запущен
+        "listening", # Ожидание подключений
+    ]
 
     def __init__(
         self,
@@ -69,6 +102,12 @@ class XrayManager:
         self.on_stop: Optional[Callable[[], None]] = None
         self.on_error: Optional[Callable[[str], None]] = None
         self.on_log: Optional[Callable[[str], None]] = None
+
+        # Статистика подключений
+        self._connection_count: int = 0
+        self._error_count: int = 0
+        self._last_error: Optional[str] = None
+        self._connection_active: bool = False
 
     @classmethod
     def _find_binary_cached(cls) -> str:
@@ -110,52 +149,95 @@ class XrayManager:
         self._log_worker.start()
 
     def _process_log_queue(self):
-        """Обработка очереди логов с rate limiting и batch-отправкой"""
+        """Обработка очереди логов - вывод в реальном времени (без batch)"""
         log = logging.getLogger('vpn_client.xray_log_worker')
-        batch: List[str] = []
-        
+
         while not self._stop_event.is_set():
             try:
                 # Ждём лог из очереди
                 try:
                     message = self._log_queue.get(timeout=self.LOG_QUEUE_TIMEOUT)
                 except Empty:
-                    # Очередь пуста, отправляем накопленное
-                    if batch and self.on_log:
-                        self._flush_batch(batch)
-                        batch.clear()
                     continue
 
-                # Добавляем в пачку
-                batch.append(message)
-                
-                # Если пачка полная - отправляем
-                if len(batch) >= self.LOG_BATCH_SIZE:
-                    if self.on_log:
-                        self._flush_batch(batch)
-                    batch.clear()
+                # Логирование для отладки
+                log.info(f"Получено из очереди: {message[:100]}...")
+
+                # Отправляем лог сразу (без batch)
+                if self.on_log:
+                    log.info(f"Вызываем on_log callback")
+                    self._flush_batch([message])
+                else:
+                    log.warning("on_log callback не установлен!")
 
             except Exception as e:
                 log.error(f"Ошибка в log worker: {e}", exc_info=True)
                 break
 
-        # Отправляем остаток
-        if batch and self.on_log:
-            self._flush_batch(batch)
-
     def _flush_batch(self, batch: List[str]):
         """Отправка пачки логов с rate limiting"""
         current_time = time.monotonic()
-        
+
+        # Открываем файл для логирования (временно для отладки)
+        # Путь в папке проекта
+        try:
+            import os
+            log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'log_x.txt')
+            log_file = open(log_path, 'a', encoding='utf-8')
+        except Exception:
+            log_file = None
+
         for message in batch:
-            # Rate limiting
-            elapsed = current_time - self._last_log_time
-            if elapsed < self._log_rate_limit:
-                time.sleep(self._log_rate_limit - elapsed)
-                current_time = time.monotonic()
-            
+            # Rate limiting (ВРЕМЕННО ОТКЛЮЧЕН для полного вывода)
+            # elapsed = current_time - self._last_log_time
+            # if elapsed < self._log_rate_limit:
+            #     time.sleep(self._log_rate_limit - elapsed)
+            #     current_time = time.monotonic()
+
+            # Парсим лог для статистики подключений
+            self._parse_log_for_stats(message)
+
+            # Вызываем callback (отправка в GUI)
             self.on_log(message)
-            self._last_log_time = current_time
+            # self._last_log_time = current_time
+
+            # Пишем в файл лог
+            if log_file:
+                from datetime import datetime
+                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+                log_file.write(f"[{timestamp}] {message}\n")
+                log_file.flush()
+
+        if log_file:
+            log_file.close()
+
+    def _parse_log_for_stats(self, message: str):
+        """
+        Парсинг лога для обновления статистики подключений
+
+        Args:
+            message: Сообщение лога для парсинга
+        """
+        message_lower = message.lower()
+
+        # Проверка на успешное подключение
+        for pattern in self.CONNECTION_SUCCESS_PATTERNS:
+            if pattern in message_lower:
+                # Xray принял соединение
+                if "accepted" in message_lower and "socks" in message_lower:
+                    self._connection_count += 1
+                    self._connection_active = True
+                    self._last_error = None  # Сбрасываем ошибку при успешном подключении
+                break
+
+        # Проверка на ошибку подключения
+        for pattern in self.CONNECTION_ERROR_PATTERNS:
+            if pattern in message_lower:
+                self._error_count += 1
+                self._last_error = f"Ошибка Xray: {message.strip()}"
+                self._connection_active = False
+                logger.warning(f"Обнаружена ошибка подключения: {message.strip()}")
+                break
 
     def _read_output(self):
         """Чтение вывода процесса в фоне с отправкой в очередь"""
@@ -215,15 +297,29 @@ class XrayManager:
 
                 decoded = line.decode('utf-8', errors='replace').strip()
                 if decoded:
-                    # Ограничиваем размер сообщения
-                    if len(decoded) > 500:
-                        decoded = decoded[:500] + "..."
+                    # Логирование для отладки - пишем в системный лог
+                    log.info(f"Прочитано из stdout: {decoded[:200]}")
+                    
+                    # Также пишем сразу в файл для отладки
+                    try:
+                        import os
+                        debug_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'debug_stdout.txt')
+                        with open(debug_path, 'a') as f:
+                            from datetime import datetime
+                            f.write(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] STDOUT: {decoded}\n")
+                    except Exception:
+                        pass
+                    
+                    # Ограничиваем размер сообщения (ВРЕМЕННО ОТКЛЮЧЕНО для полного вывода)
+                    # if len(decoded) > 500:
+                    #     decoded = decoded[:500] + "..."
                     # Отправляем в очередь
                     try:
                         self._log_queue.put_nowait(decoded)
-                    except Exception:
+                        log.info(f"Отправлено в очередь: {len(decoded)} байт")
+                    except Exception as e:
                         # Очередь переполнена, пропускаем лог
-                        pass
+                        log.warning(f"Очередь переполнена: {e}")
 
             except Exception as e:
                 log.error(f"Исключение в цикле чтения: {e}", exc_info=True)
@@ -383,8 +479,39 @@ class XrayManager:
         return {
             "running": self.is_running(),
             "pid": process.pid if process else None,
-            "uptime": None
+            "uptime": None,
+            "connection_count": self._connection_count,
+            "error_count": self._error_count,
+            "last_error": self._last_error,
+            "connection_active": self._connection_active
         }
+
+    def get_connection_info(self) -> dict:
+        """
+        Получение информации о подключении из логов Xray
+
+        Returns:
+            Dict с информацией о подключении:
+            - 'active': bool - активно ли подключение
+            - 'error': str - последняя ошибка или None
+            - 'error_count': int - количество ошибок
+            - 'connection_count': int - количество подключений
+        """
+        return {
+            "active": self._connection_active,
+            "error": self._last_error,
+            "error_count": self._error_count,
+            "connection_count": self._connection_count
+        }
+
+    def is_connection_healthy(self) -> bool:
+        """
+        Проверка здоровья подключения
+
+        Returns:
+            True если подключение активно и нет ошибок
+        """
+        return self._connection_active and self._last_error is None
 
     # Контекстный менеджер
     def __enter__(self):
