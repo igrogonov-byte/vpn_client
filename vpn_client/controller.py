@@ -285,14 +285,14 @@ class VPNController:
         return self.xray_updater.get_current_version() or self.xray_updater.get_binary_version()
     
     def download_update(self, update_info: Dict[str, Any],
-                        progress_callback: Optional[callable] = None) -> bool:
+                        progress_callback: Optional[Callable[[int, int], None]] = None) -> bool:
         """
         Скачать и установить обновление Xray-core
-        
+
         Args:
             update_info: Информация об обновлении
             progress_callback: Callback прогресса (downloaded, total)
-        
+
         Returns:
             True если успешно
         """

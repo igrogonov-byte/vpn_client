@@ -1,7 +1,6 @@
 """
 Утилиты безопасности
 """
-import os
 import secrets
 import hashlib
 

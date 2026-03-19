@@ -4,13 +4,15 @@
 """
 import subprocess
 import sys
-
-sys.path.insert(0, '/home/arc/VS/2222/vpn_')
-
-from vpn_client.core.xray_manager import XrayManager
 from pathlib import Path
 
-binaries_dir = Path('/home/arc/VS/2222/vpn_/vpn_client/binaries')
+# Добавляем корень проекта в path
+script_dir = Path(__file__).parent.resolve()
+sys.path.insert(0, str(script_dir))
+
+from vpn_client.core.xray_manager import XrayManager
+
+binaries_dir = script_dir / 'vpn_client' / 'binaries'
 xray_path = binaries_dir / 'xray'
 
 if xray_path.exists():

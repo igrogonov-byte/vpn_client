@@ -254,7 +254,3 @@ X-GNOME-Autostart-enabled=true
         except Exception as e:
             logger.error(f"Ошибка отключения автозапуска macOS: {e}")
             return False
-
-
-# Импорт для type hints
-from typing import Optional

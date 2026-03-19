@@ -65,8 +65,8 @@ class XrayManager:
         self._pending_logs: List[str] = []
 
         # Callbacks
-        self.on_start: Optional[Callable] = None
-        self.on_stop: Optional[Callable] = None
+        self.on_start: Optional[Callable[[], None]] = None
+        self.on_stop: Optional[Callable[[], None]] = None
         self.on_error: Optional[Callable[[str], None]] = None
         self.on_log: Optional[Callable[[str], None]] = None
 

@@ -5,13 +5,12 @@
 import os
 import sys
 import json
-import hashlib
 import logging
 import subprocess
 import tempfile
 import shutil
 from pathlib import Path
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Callable
 from datetime import datetime, timedelta
 
 try:
@@ -291,27 +290,35 @@ class XrayUpdater:
         
         return 0
     
-    def download_update(self, update_info: Dict[str, Any], 
-                        progress_callback: Optional[callable] = None) -> bool:
+    def download_update(self, update_info: Dict[str, Any],
+                        progress_callback: Optional[Callable[[int, int], None]] = None) -> bool:
         """
         Скачать обновление
-        
+
         Args:
             update_info: Информация об обновлении из check_for_updates
             progress_callback: Callback для отображения прогресса (current, total)
-        
+
         Returns:
             True если успешно
         """
         download_url = update_info.get('download_url')
         asset_name = update_info.get('asset_name')
-        
+
         if not download_url or not asset_name:
             logger.error("Нет URL или имени файла для загрузки")
             if self.on_update_error:
                 self.on_update_error("Нет URL для загрузки")
             return False
-        
+
+        # Проверка наличия HTTP клиента
+        if not HAS_REQUESTS and not HAS_URLLIB:
+            error_msg = "Нет доступного HTTP клиента (установите requests: pip install requests)"
+            logger.error(error_msg)
+            if self.on_update_error:
+                self.on_update_error(error_msg)
+            return False
+
         logger.info(f"Загрузка {asset_name}...")
         
         try:
@@ -433,14 +440,14 @@ class XrayUpdater:
             return False
     
     def install_update(self, update_info: Dict[str, Any],
-                       progress_callback: Optional[callable] = None) -> bool:
+                       progress_callback: Optional[Callable[[int, int], None]] = None) -> bool:
         """
         Скачать и установить обновление
-        
+
         Args:
             update_info: Информация об обновлении
             progress_callback: Callback прогресса
-        
+
         Returns:
             True если успешно
         """
