@@ -24,6 +24,7 @@ class VPNController:
         'config_dir', 'config_file', 'xray_manager', 'system_proxy',
         'autostart', 'current_config', 'use_system_proxy',
         'on_status_change', 'on_log', 'on_update_available',
+        'on_connection_lost',
         'xray_updater', '_update_check_thread'
     ]
 
@@ -45,7 +46,8 @@ class VPNController:
         self.on_status_change: Optional[Callable[[bool], None]] = None
         self.on_log: Optional[Callable[[str], None]] = None
         self.on_update_available: Optional[Callable[[Dict[str, Any]], None]] = None
-        
+        self.on_connection_lost: Optional[Callable[[], None]] = None
+
         # Запуск фоновой проверки обновлений
         self._start_update_check()
 
@@ -99,6 +101,7 @@ class VPNController:
             self.xray_manager.on_stop = self._on_xray_stop
             self.xray_manager.on_error = self._on_xray_error
             self.xray_manager.on_log = self._on_xray_log
+            self.xray_manager.on_connection_lost = self._on_connection_lost
 
             if not self.xray_manager.start():
                 raise Exception("Не удалось запустить Xray-core")
@@ -126,6 +129,9 @@ class VPNController:
             if self.on_log:
                 self.on_log("✅ Подключение к интернету успешно")
                 self.on_log("✅ VPN подключение установлено")
+
+            # Запуск мониторинга соединения с правильным портом
+            self.xray_manager.start_monitoring(socks_port)
 
             if self.use_system_proxy:
                 # Преобразование порта в int
@@ -284,6 +290,11 @@ class VPNController:
     def _on_xray_log(self, message: str):
         if self.on_log:
             self.on_log(message)
+
+    def _on_connection_lost(self):
+        """Вызывается когда мониторинг обнаружил потерю соединения"""
+        if self.on_log:
+            self.on_log("❌ Потеряно соединение с VPN")
 
     def _check_proxy_connection(self, socks_port: int, timeout: int = 6) -> bool:
         """

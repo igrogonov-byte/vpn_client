@@ -43,6 +43,7 @@ class VPNMainWindow(ctk.CTkFrame):
         # Подключение callback'ов
         self.controller.on_log = self.on_log
         self.controller.on_update_available = self.on_update_available_auto
+        self.controller.on_connection_lost = self.on_connection_lost
 
         # Загрузка сохранённых настроек
         self.load_settings()
@@ -68,7 +69,14 @@ class VPNMainWindow(ctk.CTkFrame):
             self.append_log(f"🔄 Доступно обновление Xray: {current} → {latest}")
         # Выполняем в главном потоке
         self.master.after(0, notify)
-    
+
+    def on_connection_lost(self):
+        """Обработчик потери соединения (вызывается из мониторинга)"""
+        def handle():
+            self.append_log("❌ Потеряно соединение с VPN")
+        # Выполняем в главном потоке
+        self.master.after(0, handle)
+
     def load_xray_version(self):
         """Загрузка информации о текущей версии Xray"""
         try:
