@@ -229,10 +229,6 @@ class VPNMainWindow(ctk.CTkFrame):
         )
         self.btn_exit.pack(side="left", fill="x", expand=True, padx=(12, 0))
 
-        # Анимационные флаги
-        self._btn_connect_animating = False
-        self._btn_exit_animating = False
-
     def create_connect_tab(self):
         """Вкладка подключения"""
         # Форма с параметрами
@@ -814,88 +810,13 @@ class VPNMainWindow(ctk.CTkFrame):
         )
         self.btn_clear.pack(side="left")
 
-    # === Анимация кнопок ===
-
-    def _animate_button_press(self, button, original_height, scale_factor, duration_ms, callback):
-        """
-        Анимация нажатия кнопки
-
-        Args:
-            button: Кнопка для анимации
-            original_height: Исходная высота кнопки
-            scale_factor: Коэффициент сжатия (0.9 = 90% от исходного размера)
-            duration_ms: Длительность анимации в миллисекундах
-            callback: Функция вызываемая после завершения анимации
-        """
-        frames = 10
-        frame_delay = duration_ms // frames
-        pressed_height = int(original_height * scale_factor)
-
-        def animate_to_pressed(frame=0):
-            """Анимация к нажатому состоянию"""
-            if frame < frames // 2:
-                # Уменьшаем размер (нажатие)
-                current_height = original_height - int((original_height - pressed_height) * (frame / (frames // 2)))
-                button.configure(height=current_height)
-                button.after(frame_delay, animate_to_pressed, frame + 1)
-            else:
-                # Возвращаем размер (отпускание) и вызываем callback
-                animate_to_released(frame - frames // 2)
-
-        def animate_to_released(frame=0):
-            """Анимация возврата к исходному размеру"""
-            if frame < frames // 2:
-                # Увеличиваем размер обратно
-                current_height = pressed_height + int((original_height - pressed_height) * ((frame + 1) / (frames // 2)))
-                button.configure(height=current_height)
-                button.after(frame_delay, animate_to_released, frame + 1)
-            else:
-                # Завершение анимации
-                button.configure(height=original_height)
-                if callback:
-                    callback()
-
-        animate_to_pressed()
-
     def on_btn_connect_click(self):
-        """Обработчик клика на кнопку Подключить с анимацией"""
-        if self._btn_connect_animating:
-            return
-        self._btn_connect_animating = True
-
-        original_height = 50
-
-        def animation_complete():
-            self._btn_connect_animating = False
-            self.toggle_connection()
-
-        self._animate_button_press(
-            self.btn_connect,
-            original_height,
-            scale_factor=0.92,
-            duration_ms=150,
-            callback=animation_complete
-        )
+        """Обработчик клика на кнопку Подключить/Отключить"""
+        self.toggle_connection()
 
     def on_btn_exit_click(self):
-        """Обработчик клика на кнопку Выход с анимацией"""
-        if self._btn_exit_animating:
-            return
-        self._btn_exit_animating = True
-
-        original_height = 50
-
-        def animation_complete():
-            self._btn_exit_animating = False
-            self.exit_app()
-
-        self._animate_button_press(
-            self.btn_exit,
-            original_height,
-            scale_factor=0.92,
-            duration_ms=150,
-            callback=animation_complete
-        )
+        """Обработчик клика на кнопку Выход"""
+        self.exit_app()
 
     def toggle_connection(self):
         """Переключение подключения"""
