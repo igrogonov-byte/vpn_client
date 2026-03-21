@@ -3,7 +3,6 @@
 Современный строгий дизайн с серо-голубой цветовой схемой
 """
 import customtkinter as ctk
-from tkinter import messagebox
 from datetime import datetime
 import threading
 import subprocess
@@ -75,17 +74,13 @@ class VPNMainWindow(ctk.CTkFrame):
         def handle():
             # 1. Запись в лог
             self.append_log("❌ Потеряно соединение с VPN")
-            
+
             # 2. Вывод информационного окна
-            from tkinter import messagebox
-            messagebox.showwarning(
-                "Внимание",
-                "Соединение с VPN потеряно"
-            )
-            
+            self.show_warning_dialog("Внимание", "Соединение с VPN потеряно")
+
             # 3. Выполняем тот же алгоритм, что и при нажатии кнопки «Отключить»
             self.disconnect()
-        
+
         # Выполняем в главном потоке
         self.master.after(0, handle)
 
@@ -639,7 +634,7 @@ class VPNMainWindow(ctk.CTkFrame):
         if profile_name:
             profile_name = profile_name.strip()
             if not profile_name:
-                messagebox.showwarning("Ошибка", "Имя профиля не может быть пустым")
+                self.show_error_dialog("Ошибка", "Имя профиля не может быть пустым")
                 return
 
             # Получаем текущие настройки из полей
@@ -651,22 +646,22 @@ class VPNMainWindow(ctk.CTkFrame):
                 self.refresh_profiles()
                 self.combo_profiles.set(profile_name)
             else:
-                messagebox.showerror("Ошибка", "Не удалось сохранить профиль")
+                self.show_error_dialog("Ошибка", "Не удалось сохранить профиль")
 
     def delete_profile_dialog(self):
         """Диалог удаления профиля"""
         profile_name = self.combo_profiles.get()
-        
+
         if not profile_name or profile_name == "Новый профиль...":
-            messagebox.showinfo("Информация", "Выберите профиль для удаления")
+            self.show_info_dialog("Информация", "Выберите профиль для удаления")
             return
-        
-        if messagebox.askyesno("Удаление профиля", f"Удалить профиль '{profile_name}'?"):
+
+        if self.show_yesno_dialog("Удаление профиля", f"Удалить профиль '{profile_name}'?"):
             if self.controller.delete_profile(profile_name):
                 self.append_log(f"🗑 Профиль '{profile_name}' удален")
                 self.refresh_profiles()
             else:
-                messagebox.showerror("Ошибка", "Не удалось удалить профиль")
+                self.show_error_dialog("Ошибка", "Не удалось удалить профиль")
 
     def create_settings_tab(self):
         """Вкладка настроек"""
@@ -861,10 +856,345 @@ class VPNMainWindow(ctk.CTkFrame):
             else:
                 raise Exception("Не удалось подключиться")
         except Exception as e:
-            messagebox.showerror("Ошибка подключения", str(e))
+            error_msg = str(e)
+            # Если ошибка о недоступности сервера — показываем понятное сообщение
+            if "Сервер недоступен" in error_msg or "нет связи с интернетом" in error_msg:
+                self.show_connection_error_dialog("Сервер недоступен или нет связи с интернетом")
+            elif "Не удалось подключиться" in error_msg:
+                self.show_connection_error_dialog("Сервер недоступен или нет связи с интернетом")
+            else:
+                self.show_connection_error_dialog(error_msg)
             self.append_log(f"❌ Ошибка: {e}")
         finally:
             self.btn_connect.configure(state="normal")
+
+    def show_connection_error_dialog(self, message: str):
+        """Показ диалога ошибки подключения в стиле GUI"""
+        # Вычисляем позицию центра ДО создания окна
+        self.master.update_idletasks()
+        main_x = self.master.winfo_rootx()
+        main_y = self.master.winfo_rooty()
+        main_w = self.master.winfo_width()
+        main_h = self.master.winfo_height()
+        
+        dialog_w = 450
+        dialog_h = 200
+        x = main_x + (main_w - dialog_w) // 2
+        y = main_y + (main_h - dialog_h) // 2
+
+        dialog = ctk.CTkToplevel(self.master)
+        dialog.title("❌ Ошибка подключения")
+        dialog.geometry(f"{dialog_w}x{dialog_h}+{x}+{y}")
+        dialog.resizable(False, False)
+
+        # Делаем диалог модальным
+        dialog.transient(self.master)
+        dialog.grab_set()
+
+        # Основной фрейм
+        main_frame = ctk.CTkFrame(dialog, fg_color=COLORS["bg_secondary"])
+        main_frame.pack(fill="both", expand=True)
+
+        # Иконка ошибки
+        icon_label = ctk.CTkLabel(
+            main_frame,
+            text="❌",
+            font=ctk.CTkFont(size=40),
+            fg_color="transparent"
+        )
+        icon_label.pack(pady=(15, 10))
+
+        # Текст сообщения
+        message_label = ctk.CTkLabel(
+            main_frame,
+            text=message,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="transparent",
+            text_color=COLORS["text_primary"],
+            wraplength=380
+        )
+        message_label.pack(pady=(0, 20))
+
+        # Кнопка ОК
+        ok_button = ctk.CTkButton(
+            main_frame,
+            text="ОК",
+            width=120,
+            height=35,
+            fg_color=COLORS["danger"],
+            hover_color="#c0392b",
+            text_color="#ffffff",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=dialog.destroy
+        )
+        ok_button.pack(pady=(0, 15))
+
+        # Фокус на кнопке
+        ok_button.focus_set()
+
+        # Закрытие по Enter
+        dialog.bind("<Return>", lambda e: dialog.destroy())
+
+    def show_error_dialog(self, title: str, message: str):
+        """Показ диалога ошибки в стиле GUI"""
+        self.master.update_idletasks()
+        main_x = self.master.winfo_rootx()
+        main_y = self.master.winfo_rooty()
+        main_w = self.master.winfo_width()
+        main_h = self.master.winfo_height()
+        
+        dialog_w = 400
+        dialog_h = 180
+        x = main_x + (main_w - dialog_w) // 2
+        y = main_y + (main_h - dialog_h) // 2
+
+        dialog = ctk.CTkToplevel(self.master)
+        dialog.title(title)
+        dialog.geometry(f"{dialog_w}x{dialog_h}+{x}+{y}")
+        dialog.resizable(False, False)
+
+        dialog.transient(self.master)
+        dialog.grab_set()
+
+        main_frame = ctk.CTkFrame(dialog, fg_color=COLORS["bg_secondary"])
+        main_frame.pack(fill="both", expand=True)
+
+        icon_label = ctk.CTkLabel(
+            main_frame,
+            text="❌",
+            font=ctk.CTkFont(size=40),
+            fg_color="transparent"
+        )
+        icon_label.pack(pady=(15, 10))
+
+        message_label = ctk.CTkLabel(
+            main_frame,
+            text=message,
+            font=ctk.CTkFont(size=14),
+            fg_color="transparent",
+            text_color=COLORS["text_primary"],
+            wraplength=340
+        )
+        message_label.pack(pady=(0, 20))
+
+        ok_button = ctk.CTkButton(
+            main_frame,
+            text="ОК",
+            width=120,
+            height=35,
+            fg_color=COLORS["danger"],
+            hover_color="#c0392b",
+            text_color="#ffffff",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=dialog.destroy
+        )
+        ok_button.pack(pady=(0, 15))
+        ok_button.focus_set()
+        dialog.bind("<Return>", lambda e: dialog.destroy())
+
+    def show_info_dialog(self, title: str, message: str):
+        """Показ информационного диалога в стиле GUI"""
+        self.master.update_idletasks()
+        main_x = self.master.winfo_rootx()
+        main_y = self.master.winfo_rooty()
+        main_w = self.master.winfo_width()
+        main_h = self.master.winfo_height()
+        
+        dialog_w = 400
+        dialog_h = 180
+        x = main_x + (main_w - dialog_w) // 2
+        y = main_y + (main_h - dialog_h) // 2
+
+        dialog = ctk.CTkToplevel(self.master)
+        dialog.title(title)
+        dialog.geometry(f"{dialog_w}x{dialog_h}+{x}+{y}")
+        dialog.resizable(False, False)
+
+        dialog.transient(self.master)
+        dialog.grab_set()
+
+        main_frame = ctk.CTkFrame(dialog, fg_color=COLORS["bg_secondary"])
+        main_frame.pack(fill="both", expand=True)
+
+        icon_label = ctk.CTkLabel(
+            main_frame,
+            text="ℹ️",
+            font=ctk.CTkFont(size=40),
+            fg_color="transparent"
+        )
+        icon_label.pack(pady=(15, 10))
+
+        message_label = ctk.CTkLabel(
+            main_frame,
+            text=message,
+            font=ctk.CTkFont(size=14),
+            fg_color="transparent",
+            text_color=COLORS["text_primary"],
+            wraplength=340
+        )
+        message_label.pack(pady=(0, 20))
+
+        ok_button = ctk.CTkButton(
+            main_frame,
+            text="ОК",
+            width=120,
+            height=35,
+            fg_color=COLORS["accent_blue"],
+            hover_color=COLORS["accent_blue_hover"],
+            text_color="#ffffff",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=dialog.destroy
+        )
+        ok_button.pack(pady=(0, 15))
+        ok_button.focus_set()
+        dialog.bind("<Return>", lambda e: dialog.destroy())
+
+    def show_warning_dialog(self, title: str, message: str):
+        """Показ диалога предупреждения в стиле GUI"""
+        self.master.update_idletasks()
+        main_x = self.master.winfo_rootx()
+        main_y = self.master.winfo_rooty()
+        main_w = self.master.winfo_width()
+        main_h = self.master.winfo_height()
+        
+        dialog_w = 400
+        dialog_h = 180
+        x = main_x + (main_w - dialog_w) // 2
+        y = main_y + (main_h - dialog_h) // 2
+
+        dialog = ctk.CTkToplevel(self.master)
+        dialog.title(title)
+        dialog.geometry(f"{dialog_w}x{dialog_h}+{x}+{y}")
+        dialog.resizable(False, False)
+
+        dialog.transient(self.master)
+        dialog.grab_set()
+
+        main_frame = ctk.CTkFrame(dialog, fg_color=COLORS["bg_secondary"])
+        main_frame.pack(fill="both", expand=True)
+
+        icon_label = ctk.CTkLabel(
+            main_frame,
+            text="⚠️",
+            font=ctk.CTkFont(size=40),
+            fg_color="transparent"
+        )
+        icon_label.pack(pady=(15, 10))
+
+        message_label = ctk.CTkLabel(
+            main_frame,
+            text=message,
+            font=ctk.CTkFont(size=14),
+            fg_color="transparent",
+            text_color=COLORS["text_primary"],
+            wraplength=340
+        )
+        message_label.pack(pady=(0, 20))
+
+        ok_button = ctk.CTkButton(
+            main_frame,
+            text="ОК",
+            width=120,
+            height=35,
+            fg_color="#f39c12",
+            hover_color="#e67e22",
+            text_color="#ffffff",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=dialog.destroy
+        )
+        ok_button.pack(pady=(0, 15))
+        ok_button.focus_set()
+        dialog.bind("<Return>", lambda e: dialog.destroy())
+
+    def show_yesno_dialog(self, title: str, message: str) -> bool:
+        """Показ диалога с вопросом Да/Нет в стиле GUI. Возвращает True если Да."""
+        result = {'value': False}
+        
+        self.master.update_idletasks()
+        main_x = self.master.winfo_rootx()
+        main_y = self.master.winfo_rooty()
+        main_w = self.master.winfo_width()
+        main_h = self.master.winfo_height()
+        
+        dialog_w = 400
+        dialog_h = 180
+        x = main_x + (main_w - dialog_w) // 2
+        y = main_y + (main_h - dialog_h) // 2
+
+        dialog = ctk.CTkToplevel(self.master)
+        dialog.title(title)
+        dialog.geometry(f"{dialog_w}x{dialog_h}+{x}+{y}")
+        dialog.resizable(False, False)
+
+        dialog.transient(self.master)
+        dialog.grab_set()
+
+        main_frame = ctk.CTkFrame(dialog, fg_color=COLORS["bg_secondary"])
+        main_frame.pack(fill="both", expand=True)
+
+        icon_label = ctk.CTkLabel(
+            main_frame,
+            text="❓",
+            font=ctk.CTkFont(size=40),
+            fg_color="transparent"
+        )
+        icon_label.pack(pady=(15, 10))
+
+        message_label = ctk.CTkLabel(
+            main_frame,
+            text=message,
+            font=ctk.CTkFont(size=14),
+            fg_color="transparent",
+            text_color=COLORS["text_primary"],
+            wraplength=340
+        )
+        message_label.pack(pady=(0, 20))
+
+        # Фрейм для кнопок
+        buttons_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        buttons_frame.pack(pady=(0, 15))
+
+        def on_yes():
+            result['value'] = True
+            dialog.destroy()
+
+        def on_no():
+            result['value'] = False
+            dialog.destroy()
+
+        yes_button = ctk.CTkButton(
+            buttons_frame,
+            text="Да",
+            width=100,
+            height=35,
+            fg_color=COLORS["danger"],
+            hover_color="#c0392b",
+            text_color="#ffffff",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=on_yes
+        )
+        yes_button.pack(side="left", padx=(20, 10))
+
+        no_button = ctk.CTkButton(
+            buttons_frame,
+            text="Нет",
+            width=100,
+            height=35,
+            fg_color=COLORS["bg_tertiary"],
+            hover_color="#3a4a5d",
+            text_color="#ffffff",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=on_no
+        )
+        no_button.pack(side="right", padx=(10, 20))
+
+        no_button.focus_set()
+        dialog.bind("<Return>", lambda e: on_yes())
+        dialog.bind("<Escape>", lambda e: on_no())
+        
+        # Ждём закрытия диалога
+        self.master.wait_window(dialog)
+        return result['value']
 
     def disconnect(self):
         """Отключение"""
@@ -1148,10 +1478,10 @@ class VPNMainWindow(ctk.CTkFrame):
     def install_update(self):
         """Установка обновления Xray-core"""
         if not hasattr(self, '_pending_update') or not self._pending_update:
-            messagebox.showwarning("Обновление", "Сначала проверьте обновления")
+            self.show_warning_dialog("Обновление", "Сначала проверьте обновления")
             return
-        
-        if not messagebox.askyesno(
+
+        if not self.show_yesno_dialog(
             "Подтверждение",
             f"Установить обновление Xray-core?\n\n"
             f"Текущая версия: {self._pending_update.get('current_version', '?')}\n"
@@ -1159,11 +1489,11 @@ class VPNMainWindow(ctk.CTkFrame):
             "Приложение будет перезапущено после установки."
         ):
             return
-        
+
         self.btn_install_update.configure(state="disabled", text="⏳ Загрузка...")
         self.btn_check_update.configure(state="disabled")
         self.update_progress.set(0)
-        
+
         def progress_callback(downloaded, total):
             """Обновление прогресса"""
             if total > 0:
@@ -1176,25 +1506,25 @@ class VPNMainWindow(ctk.CTkFrame):
                         text=f"Загрузка: {mb_downloaded:.1f} / {mb_total:.1f} MB ({percent:.0f}%)"
                     )
                 ))
-        
+
         def install_thread():
             try:
                 success = self.controller.download_update(self._pending_update, progress_callback)
-                
+
                 self.master.after(0, lambda: (
                     self.btn_install_update.configure(state="normal", text="⬇️ Установить"),
                     self.btn_check_update.configure(state="normal")
                 ))
-                
+
                 if success:
                     self.update_status_label.configure(text="✅ Обновление установлено!")
                     self.version_label.configure(text="Версия: обновлена")
                     self.btn_install_update.configure(state="disabled")
                     self._pending_update = None
                     self.append_log("✅ Xray-core обновлён")
-                    
+
                     # Предложение перезапуска
-                    if messagebox.askyesno("Обновление установлено", 
+                    if self.show_yesno_dialog("Обновление установлено",
                         "Xray-core обновлён. Перезапустить приложение?"):
                         self.master.after(500, self.master.quit)
                 else:
