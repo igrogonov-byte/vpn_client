@@ -73,7 +73,19 @@ class VPNMainWindow(ctk.CTkFrame):
     def on_connection_lost(self):
         """Обработчик потери соединения (вызывается из мониторинга)"""
         def handle():
+            # 1. Запись в лог
             self.append_log("❌ Потеряно соединение с VPN")
+            
+            # 2. Вывод информационного окна
+            from tkinter import messagebox
+            messagebox.showwarning(
+                "Внимание",
+                "Соединение с VPN потеряно"
+            )
+            
+            # 3. Выполняем тот же алгоритм, что и при нажатии кнопки «Отключить»
+            self.disconnect()
+        
         # Выполняем в главном потоке
         self.master.after(0, handle)
 
