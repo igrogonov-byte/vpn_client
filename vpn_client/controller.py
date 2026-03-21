@@ -130,9 +130,6 @@ class VPNController:
                 self.on_log("✅ Подключение к интернету успешно")
                 self.on_log("✅ VPN подключение установлено")
 
-            # Запуск мониторинга соединения с правильным портом
-            self.xray_manager.start_monitoring(socks_port)
-
             if self.use_system_proxy:
                 # Преобразование порта в int
                 try:
@@ -230,6 +227,22 @@ class VPNController:
         info = self.xray_manager.get_connection_info()
         info['healthy'] = self.xray_manager.is_connection_healthy()
         return info
+
+    def check_connection(self, socks_port: Optional[int] = None) -> float:
+        """
+        Проверка соединения через curl к 1.1.1.1:443
+
+        Args:
+            socks_port: Порт SOCKS прокси (по умолчанию из текущей конфигурации)
+
+        Returns:
+            latency в секундах или 0 при ошибке/таймауте
+        """
+        if not self.xray_manager:
+            return 0
+        if socks_port is None:
+            socks_port = self.current_config.get("local_port", 10808) if self.current_config else 10808
+        return self.xray_manager.check_connection(socks_port)
 
     def set_system_proxy(self, enabled: bool, port: Optional[int] = None) -> bool:
         self.use_system_proxy = enabled

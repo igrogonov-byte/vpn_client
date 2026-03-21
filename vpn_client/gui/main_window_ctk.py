@@ -163,6 +163,8 @@ class VPNMainWindow(ctk.CTkFrame):
         self.session_timer_id = None
         self.latency_timer_id = None
         self.local_port = 10808  # Порт прокси для измерения latency
+        self._connection_failures = 0  # Счётчик неудачных попыток подключения
+        self._max_failures = 3  # Максимум провалов перед детектированием потери
 
         # Вкладки
         self.tabview = ctk.CTkTabview(
@@ -919,6 +921,7 @@ class VPNMainWindow(ctk.CTkFrame):
         try:
             result = self.controller.connect(config_data)
             if result:
+                self._connection_failures = 0  # Сброс счётчика при успешном подключении
                 self.update_ui_connected(True)
                 self.append_log("✅ Подключение успешно")
                 self.save_settings()
@@ -933,6 +936,7 @@ class VPNMainWindow(ctk.CTkFrame):
     def disconnect(self):
         """Отключение"""
         self.controller.disconnect()
+        self._connection_failures = 0  # Сброс счётчика при отключении
         self.update_ui_connected(False)
         self.append_log("Отключено")
 
@@ -1005,6 +1009,7 @@ class VPNMainWindow(ctk.CTkFrame):
         if self.latency_timer_id:
             self.master.after_cancel(self.latency_timer_id)
             self.latency_timer_id = None
+        self._connection_failures = 0  # Сброс счётчика
         self.latency_label.configure(text="")
 
     def schedule_next_latency_measurement(self):
@@ -1018,23 +1023,32 @@ class VPNMainWindow(ctk.CTkFrame):
         self.schedule_next_latency_measurement()
 
     def measure_latency(self):
-        """Измерение задержки через VPN прокси (в отдельном потоке)"""
+        """Измерение задержки через VPN прокси + мониторинг соединения (в отдельном потоке)"""
         def _measure():
             try:
-                result = subprocess.run(
-                    ['curl', '-x', f'socks5h://127.0.0.1:{self.local_port}',
-                     '-w', '%{time_appconnect}', '-o', '/dev/null',
-                     '-s', '--connect-timeout', '3',
-                     'https://1.1.1.1/cdn-cgi/trace'],
-                    capture_output=True, text=True, timeout=5
-                )
-                if result.returncode == 0 and result.stdout.strip():
-                    latency_ms = float(result.stdout) * 1000
+                # Используем controller.check_connection() — один запрос для latency и мониторинга
+                latency = self.controller.check_connection(self.local_port)
+                
+                if latency > 0:
+                    # Успех — сбрасываем счётчик неудач
+                    self._connection_failures = 0
+                    latency_ms = latency * 1000
                     self.master.after(0, lambda: self.latency_label.configure(text=f"📶 {latency_ms:.0f} мс"))
                 else:
+                    # Неудача — инкремент счётчика
+                    self._connection_failures += 1
                     self.master.after(0, lambda: self.latency_label.configure(text="📶 --"))
+                    
+                    # 3 неудачи подряд = потеря соединения
+                    if self._connection_failures >= self._max_failures:
+                        self.master.after(0, self.on_connection_lost)
+                        
             except Exception:
+                self._connection_failures += 1
                 self.master.after(0, lambda: self.latency_label.configure(text="📶 --"))
+                
+                if self._connection_failures >= self._max_failures:
+                    self.master.after(0, self.on_connection_lost)
 
         threading.Thread(target=_measure, daemon=True).start()
 

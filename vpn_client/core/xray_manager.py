@@ -36,7 +36,6 @@ class XrayManager:
         'on_start', 'on_stop', 'on_error', 'on_log',
         '_last_log_time', '_log_rate_limit', '_pending_logs',
         '_connection_count', '_error_count', '_last_error', '_connection_active',
-        '_monitor_thread', '_monitor_stop_event', '_consecutive_failures', '_socks_port',
         'on_connection_lost'
     ]
 
@@ -44,9 +43,6 @@ class XrayManager:
     LOG_RATE_LIMIT = 0.05  # Мин. интервал между логами (50ms ~ 20 логов/сек)
     LOG_BATCH_SIZE = 5     # Размер пачки для batch-отправки
     LOG_QUEUE_TIMEOUT = 0.1  # Таймаут ожидания логов из очереди
-    MONITOR_INTERVAL = 10  # Интервал мониторинга (секунды)
-    MONITOR_TIMEOUT = 5  # Таймаут одной проверки (секунды)
-    MAX_CONSECUTIVE_FAILURES = 3  # Провалов подряд для детектирования потери
 
     # Паттерны ошибок подключения Xray
     CONNECTION_ERROR_PATTERNS = [
@@ -96,17 +92,11 @@ class XrayManager:
         # Очередь для потокобезопасной передачи логов
         self._log_queue: Queue = Queue(maxsize=1000)
         self._log_worker: Optional[threading.Thread] = None
-        
+
         # Rate limiting для логов
         self._last_log_time: float = 0
         self._log_rate_limit: float = log_rate_limit
         self._pending_logs: List[str] = []
-
-        # Мониторинг соединения
-        self._monitor_thread: Optional[threading.Thread] = None
-        self._monitor_stop_event = threading.Event()
-        self._consecutive_failures: int = 0
-        self._socks_port: int = 10808
 
         # Callbacks
         self.on_start: Optional[Callable[[], None]] = None
@@ -253,76 +243,28 @@ class XrayManager:
 
     # ========== Мониторинг соединения ==========
 
-    def start_monitoring(self, socks_port: int = 10808):
-        """Запуск мониторинга соединения"""
-        self._socks_port = socks_port
-        self._monitor_stop_event.clear()
-        self._consecutive_failures = 0
-        self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
-        self._monitor_thread.start()
-        logger.info(f"Мониторинг соединения запущен (порт {socks_port})")
-
-    def stop_monitoring(self):
-        """Остановка мониторинга соединения"""
-        self._monitor_stop_event.set()
-        if self._monitor_thread and self._monitor_thread.is_alive():
-            self._monitor_thread.join(timeout=2)
-        logger.info("Мониторинг соединения остановлен")
-
-    def _monitor_loop(self):
-        """Фоновый мониторинг соединения"""
-        logger.info("Мониторинг: цикл запущен")
-
-        while not self._monitor_stop_event.is_set():
-            # Ждём интервал
-            if self._monitor_stop_event.wait(timeout=self.MONITOR_INTERVAL):
-                break
-
-            # Измеряем latency
-            latency = self._measure_latency()
-
-            if latency > 0:
-                self._consecutive_failures = 0
-                logger.debug(f"Мониторинг: соединение активно (latency={latency:.0f}мс)")
-            else:
-                self._consecutive_failures += 1
-                logger.warning(f"Мониторинг: провал #{self._consecutive_failures}")
-
-                # 3 провала подряд = потеря соединения
-                if self._consecutive_failures >= self.MAX_CONSECUTIVE_FAILURES:
-                    self._connection_active = False
-                    self._last_error = f"Потеря соединения ({self._consecutive_failures} провала подряд)"
-
-                    # Уведомляем GUI
-                    if self.on_connection_lost:
-                        try:
-                            self.on_connection_lost()
-                        except Exception as e:
-                            logger.error(f"Ошибка callback on_connection_lost: {e}")
-
-                    logger.warning("Мониторинг: потеря соединения с VPN")
-                    break  # Выход из цикла мониторинга
-
-    def _measure_latency(self) -> float:
+    def check_connection(self, socks_port: int = 10808) -> float:
         """
-        Измерение latency через curl к 1.1.1.1:443
+        Проверка соединения через curl к 1.1.1.1:443
+
+        Args:
+            socks_port: Порт SOCKS прокси
 
         Returns:
             latency в секундах или 0 при ошибке/таймауте
         """
         try:
             result = subprocess.run(
-                ['curl', '-x', f'socks5h://127.0.0.1:{self._socks_port}',
+                ['curl', '-x', f'socks5h://127.0.0.1:{socks_port}',
                  '-w', '%{time_appconnect}', '-o', '/dev/null',
                  '-s', '--connect-timeout', '3',
                  'https://1.1.1.1/cdn-cgi/trace'],
-                capture_output=True, text=True, timeout=self.MONITOR_TIMEOUT
+                capture_output=True, text=True, timeout=5
             )
             if result.returncode == 0 and result.stdout.strip():
                 return float(result.stdout.strip())
             return 0
         except subprocess.TimeoutExpired:
-            # Таймаут 5 секунд
             return 0
         except Exception:
             return 0
@@ -509,9 +451,6 @@ class XrayManager:
                     logger.info("Ждём завершения log worker...")
                     self._log_worker.join(timeout=1.0)
                     logger.info(f"Log worker завершён, is_alive={self._log_worker.is_alive()}")
-
-                # Останавливаем мониторинг соединения
-                self.stop_monitoring()
 
                 # Закрываем stdout если открыт
                 try:
