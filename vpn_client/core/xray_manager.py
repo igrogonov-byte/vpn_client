@@ -40,7 +40,7 @@ class XrayManager:
     ]
 
     # Константы
-    LOG_RATE_LIMIT = 0.05  # Мин. интервал между логами (50ms ~ 20 логов/сек)
+    LOG_RATE_LIMIT = 0.1  # Мин. интервал между логами (100ms ~ 10 логов/сек)
     LOG_BATCH_SIZE = 5     # Размер пачки для batch-отправки
     LOG_QUEUE_TIMEOUT = 0.1  # Таймаут ожидания логов из очереди
 
@@ -181,18 +181,18 @@ class XrayManager:
         current_time = time.monotonic()
 
         for message in batch:
-            # Rate limiting (ВРЕМЕННО ОТКЛЮЧЕН для полного вывода)
-            # elapsed = current_time - self._last_log_time
-            # if elapsed < self._log_rate_limit:
-            #     time.sleep(self._log_rate_limit - elapsed)
-            #     current_time = time.monotonic()
+            # Rate limiting (10 логов/сек)
+            elapsed = current_time - self._last_log_time
+            if elapsed < self._log_rate_limit:
+                time.sleep(self._log_rate_limit - elapsed)
+                current_time = time.monotonic()
 
             # Парсим лог для статистики подключений
             self._parse_log_for_stats(message)
 
             # Вызываем callback (отправка в GUI)
             self.on_log(message)
-            # self._last_log_time = current_time
+            self._last_log_time = current_time
 
     def _parse_log_for_stats(self, message: str):
         """
