@@ -180,15 +180,6 @@ class XrayManager:
         """Отправка пачки логов с rate limiting"""
         current_time = time.monotonic()
 
-        # Открываем файл для логирования (временно для отладки)
-        # Путь в папке проекта
-        try:
-            import os
-            log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'log_x.txt')
-            log_file = open(log_path, 'a', encoding='utf-8')
-        except Exception:
-            log_file = None
-
         for message in batch:
             # Rate limiting (ВРЕМЕННО ОТКЛЮЧЕН для полного вывода)
             # elapsed = current_time - self._last_log_time
@@ -202,16 +193,6 @@ class XrayManager:
             # Вызываем callback (отправка в GUI)
             self.on_log(message)
             # self._last_log_time = current_time
-
-            # Пишем в файл лог
-            if log_file:
-                from datetime import datetime
-                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
-                log_file.write(f"[{timestamp}] {message}\n")
-                log_file.flush()
-
-        if log_file:
-            log_file.close()
 
     def _parse_log_for_stats(self, message: str):
         """
@@ -331,20 +312,7 @@ class XrayManager:
                 if decoded:
                     # Логирование для отладки - пишем в системный лог
                     log.info(f"Прочитано из stdout: {decoded[:200]}")
-                    
-                    # Также пишем сразу в файл для отладки
-                    try:
-                        import os
-                        debug_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'debug_stdout.txt')
-                        with open(debug_path, 'a') as f:
-                            from datetime import datetime
-                            f.write(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] STDOUT: {decoded}\n")
-                    except Exception:
-                        pass
-                    
-                    # Ограничиваем размер сообщения (ВРЕМЕННО ОТКЛЮЧЕНО для полного вывода)
-                    # if len(decoded) > 500:
-                    #     decoded = decoded[:500] + "..."
+
                     # Отправляем в очередь
                     try:
                         self._log_queue.put_nowait(decoded)

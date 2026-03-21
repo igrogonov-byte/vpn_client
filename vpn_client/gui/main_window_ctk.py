@@ -1558,10 +1558,23 @@ class VPNMainWindow(ctk.CTkFrame):
         thread = threading.Thread(target=install_thread, daemon=True)
         thread.start()
 
-    def append_log(self, message: str):
-        """Добавление сообщения в лог"""
+    def append_log(self, message: str, max_lines: int = 500):
+        """Добавление сообщения в лог с ротацией
+
+        Args:
+            message: Сообщение для добавления
+            max_lines: Максимальное количество строк в логе (по умолчанию 500)
+        """
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.log_text.insert("end", f"[{timestamp}] {message}\n")
+
+        # Ротация: удаление старых строк при превышении лимита
+        lines = int(self.log_text.index("end-1c").split(".")[0])
+        if lines > max_lines:
+            # Удаляем старые строки (с начала)
+            self.log_text.delete("1.0", f"{lines - max_lines}.0")
+
+        # Автоскролл к последней строке
         self.log_text.see("end")
 
     def clear_logs(self):
