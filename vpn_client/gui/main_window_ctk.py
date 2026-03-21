@@ -26,12 +26,13 @@ COLORS = {
 class VPNMainWindow(ctk.CTkFrame):
     """Основное окно VPN клиента"""
 
-    def __init__(self, master, controller, auto_start_proxy=False):
+    def __init__(self, master, controller, auto_start_proxy=False, app_state=None):
         super().__init__(master)
         self.master = master
         self.controller = controller
         self.is_connected = False
         self.auto_start_proxy = auto_start_proxy
+        self.app_state = app_state or {'is_hidden': False}
 
         # Настройка стиля
         ctk.set_appearance_mode("dark")
@@ -75,10 +76,25 @@ class VPNMainWindow(ctk.CTkFrame):
             # 1. Запись в лог
             self.append_log("❌ Потеряно соединение с VPN")
 
-            # 2. Вывод информационного окна
-            self.show_warning_dialog("Внимание", "Соединение с VPN потеряно.Требуется реконнект")
+            # 2. Проверяем состояние окна
+            is_hidden = self.app_state.get('is_hidden', False)
+            self.append_log(f"[DEBUG] Окно скрыто в трей: {is_hidden}")
 
-            # 3. Выполняем тот же алгоритм, что и при нажатии кнопки «Отключить»
+            # 3. Если окно скрыто в трей - показываем системное уведомление
+            if is_hidden:
+                from vpn_client.utils.notify import show_notification
+                self.append_log("[DEBUG] Вызываем show_notification...")
+                result = show_notification(
+                    title="VPN упал",
+                    message="Соединение с VPN потеряно. Требуется реконнект.",
+                    app_name="VPN Client"
+                )
+                self.append_log(f"[DEBUG] Результат уведомления: {result}")
+            else:
+                # 4. Если окно видно - показываем диалог
+                self.show_warning_dialog("Внимание", "Соединение с VPN потеряно. Требуется реконнект")
+
+            # 5. Выполняем отключение
             self.disconnect()
 
         # Выполняем в главном потоке

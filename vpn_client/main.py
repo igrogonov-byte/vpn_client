@@ -50,12 +50,12 @@ def main():
     # Создание контроллера
     controller = VPNController()
 
-    # Создание главного окна
-    window = VPNMainWindow(app, controller, auto_start_proxy=True)
-    window.pack(fill="both", expand=True)
-
     # Флаг состояния
     state = {'is_hidden': False}
+
+    # Создание главного окна (передаём ссылку на state для уведомлений)
+    window = VPNMainWindow(app, controller, auto_start_proxy=True, app_state=state)
+    window.pack(fill="both", expand=True)
 
     def create_icon():
         """Создание иконки для трея"""
