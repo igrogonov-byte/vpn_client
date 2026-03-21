@@ -1,0 +1,67 @@
+[20:20:05.198] STDOUT: Xray 26.2.6 (Xray, Penetrates Everything.) 12ee51e (go1.25.7 linux/amd64)
+[20:20:05.198] STDOUT: A unified platform for anti-censorship.
+[20:20:05.198] STDOUT: 2026/03/21 20:20:05.198283 [Info] infra/conf/serial: Reading config: &{Name:/home/arc/.config/vpnclient/config.json Format:json}
+[20:20:05.205] STDOUT: 2026/03/21 20:20:05.205815 [Warning] common/errors: The feature VLESS (with no Flow, etc.) is deprecated, not recommended for using and might be removed. Please migrate to VLESS with Flow & Seed as soon as possible.
+[20:20:05.211] STDOUT: 2026/03/21 20:20:05.211158 [Warning] core: Xray 26.2.6 started
+[20:20:07.190] STDOUT: 2026/03/21 20:20:07.190014 from tcp:127.0.0.1:38058 accepted tcp:1.1.1.1:80 [socks -> proxy]
+[20:20:13.011] STDOUT: Xray 26.2.6 (Xray, Penetrates Everything.) 12ee51e (go1.25.7 linux/amd64)
+[20:20:13.011] STDOUT: A unified platform for anti-censorship.
+[20:20:13.011] STDOUT: 2026/03/21 20:20:13.011242 [Info] infra/conf/serial: Reading config: &{Name:/home/arc/.config/vpnclient/config.json Format:json}
+[20:20:13.018] STDOUT: 2026/03/21 20:20:13.018062 [Warning] common/errors: The feature VLESS (with no Flow, etc.) is deprecated, not recommended for using and might be removed. Please migrate to VLESS with Flow & Seed as soon as possible.
+[20:20:13.023] STDOUT: 2026/03/21 20:20:13.023843 [Warning] core: Xray 26.2.6 started
+[20:20:15.002] STDOUT: 2026/03/21 20:20:15.002340 from tcp:127.0.0.1:47726 accepted tcp:1.1.1.1:80 [socks -> proxy]
+[20:20:24.165] STDOUT: Xray 26.2.6 (Xray, Penetrates Everything.) 12ee51e (go1.25.7 linux/amd64)
+[20:20:24.166] STDOUT: A unified platform for anti-censorship.
+[20:20:24.166] STDOUT: 2026/03/21 20:20:24.165849 [Info] infra/conf/serial: Reading config: &{Name:/home/arc/.config/vpnclient/config.json Format:json}
+[20:20:24.175] STDOUT: 2026/03/21 20:20:24.175122 [Warning] common/errors: The feature VLESS (with no Flow, etc.) is deprecated, not recommended for using and might be removed. Please migrate to VLESS with Flow & Seed as soon as possible.
+[20:20:24.185] STDOUT: 2026/03/21 20:20:24.184912 [Warning] core: Xray 26.2.6 started
+[20:20:26.154] STDOUT: 2026/03/21 20:20:26.154443 from tcp:127.0.0.1:49652 accepted tcp:1.1.1.1:80 [socks -> proxy]
+[20:20:27.423] STDOUT: 2026/03/21 20:20:27.423412 from tcp:127.0.0.1:49666 accepted tcp:1.1.1.1:443 [socks -> proxy]
+[20:20:37.421] STDOUT: 2026/03/21 20:20:37.421424 from tcp:127.0.0.1:43042 accepted tcp:1.1.1.1:443 [socks -> proxy]
+[20:20:47.423] STDOUT: 2026/03/21 20:20:47.422917 from tcp:127.0.0.1:53872 accepted tcp:1.1.1.1:443 [socks -> proxy]
+[20:20:57.422] STDOUT: 2026/03/21 20:20:57.422568 from tcp:127.0.0.1:51454 accepted tcp:1.1.1.1:443 [socks -> proxy]
+[20:21:01.894] STDOUT: 2026/03/21 20:21:01.894065 from 127.0.0.1:33786 accepted //vk.com:443 [socks -> proxy]
+[20:21:02.169] STDOUT: 2026/03/21 20:21:02.168873 from 127.0.0.1:33790 accepted //queuev4.vk.com:443 [socks -> proxy]
+[20:21:07.436] STDOUT: 2026/03/21 20:21:07.433403 from tcp:127.0.0.1:33794 accepted tcp:1.1.1.1:443 [socks -> proxy]
+[20:21:13.011] STDOUT: 2026/03/21 20:21:13.011690 from 127.0.0.1:51026 accepted //185.184.122.133:5755 [socks -> proxy]
+[20:21:13.070] STDOUT: 2026/03/21 20:21:13.069978 from 127.0.0.1:51032 accepted //185.184.122.133:5755 [socks -> proxy]
+[20:21:17.423] STDOUT: 2026/03/21 20:21:17.423713 from tcp:127.0.0.1:51038 accepted tcp:1.1.1.1:443 [socks -> proxy]
+[20:21:27.426] STDOUT: 2026/03/21 20:21:27.426623 from tcp:127.0.0.1:56424 accepted tcp:1.1.1.1:443 [socks -> proxy]
+[20:21:30.384] STDOUT: 2026/03/21 20:21:30.383916 from 127.0.0.1:56428 accepted //main.vscode-cdn.net:443 [socks -> proxy]
+[20:21:37.425] STDOUT: 2026/03/21 20:21:37.425093 from tcp:127.0.0.1:59624 accepted tcp:1.1.1.1:443 [socks -> proxy]
+[20:21:47.426] STDOUT: 2026/03/21 20:21:47.426803 from tcp:127.0.0.1:51942 accepted tcp:1.1.1.1:443 [socks -> proxy]
+[20:21:57.426] STDOUT: 2026/03/21 20:21:57.426726 from tcp:127.0.0.1:60286 accepted tcp:1.1.1.1:443 [socks -> proxy]
+[20:22:06.686] STDOUT: 2026/03/21 20:22:06.685887 from 127.0.0.1:42748 accepted //vk.com:443 [socks -> proxy]
+[20:22:07.423] STDOUT: 2026/03/21 20:22:07.423062 from 127.0.0.1:42762 accepted //vk.com:443 [socks -> proxy]
+[20:22:07.428] STDOUT: 2026/03/21 20:22:07.428705 from tcp:127.0.0.1:42778 accepted tcp:1.1.1.1:443 [socks -> proxy]
+[20:33:33.208] STDOUT: Xray 26.2.6 (Xray, Penetrates Everything.) 12ee51e (go1.25.7 linux/amd64)
+[20:33:33.208] STDOUT: A unified platform for anti-censorship.
+[20:33:33.208] STDOUT: 2026/03/21 20:33:33.208247 [Info] infra/conf/serial: Reading config: &{Name:/home/arc/.config/vpnclient/config.json Format:json}
+[20:33:33.216] STDOUT: 2026/03/21 20:33:33.215830 [Warning] common/errors: The feature VLESS (with no Flow, etc.) is deprecated, not recommended for using and might be removed. Please migrate to VLESS with Flow & Seed as soon as possible.
+[20:33:33.221] STDOUT: 2026/03/21 20:33:33.221228 [Warning] core: Xray 26.2.6 started
+[20:33:35.200] STDOUT: 2026/03/21 20:33:35.200769 from tcp:127.0.0.1:57302 accepted tcp:1.1.1.1:80 [socks -> proxy]
+[20:33:41.952] STDOUT: Xray 26.2.6 (Xray, Penetrates Everything.) 12ee51e (go1.25.7 linux/amd64)
+[20:33:41.953] STDOUT: A unified platform for anti-censorship.
+[20:33:41.953] STDOUT: 2026/03/21 20:33:41.952725 [Info] infra/conf/serial: Reading config: &{Name:/home/arc/.config/vpnclient/config.json Format:json}
+[20:33:41.960] STDOUT: 2026/03/21 20:33:41.960355 [Warning] common/errors: The feature VLESS (with no Flow, etc.) is deprecated, not recommended for using and might be removed. Please migrate to VLESS with Flow & Seed as soon as possible.
+[20:33:41.966] STDOUT: 2026/03/21 20:33:41.965456 [Warning] core: Xray 26.2.6 started
+[20:33:43.944] STDOUT: 2026/03/21 20:33:43.943883 from tcp:127.0.0.1:35056 accepted tcp:1.1.1.1:80 [socks -> proxy]
+[20:33:53.711] STDOUT: Xray 26.2.6 (Xray, Penetrates Everything.) 12ee51e (go1.25.7 linux/amd64)
+[20:33:53.712] STDOUT: A unified platform for anti-censorship.
+[20:33:53.712] STDOUT: 2026/03/21 20:33:53.712038 [Info] infra/conf/serial: Reading config: &{Name:/home/arc/.config/vpnclient/config.json Format:json}
+[20:33:53.718] STDOUT: 2026/03/21 20:33:53.718837 [Warning] common/errors: The feature VLESS (with no Flow, etc.) is deprecated, not recommended for using and might be removed. Please migrate to VLESS with Flow & Seed as soon as possible.
+[20:33:53.725] STDOUT: 2026/03/21 20:33:53.724425 [Warning] core: Xray 26.2.6 started
+[20:33:55.702] STDOUT: 2026/03/21 20:33:55.702802 from tcp:127.0.0.1:33774 accepted tcp:1.1.1.1:80 [socks -> proxy]
+[20:33:57.012] STDOUT: 2026/03/21 20:33:57.012634 from tcp:127.0.0.1:33784 accepted tcp:1.1.1.1:443 [socks -> proxy]
+[20:34:02.251] STDOUT: 2026/03/21 20:34:02.251174 from 127.0.0.1:41540 accepted //185.184.122.133:5755 [socks -> proxy]
+[20:34:02.337] STDOUT: 2026/03/21 20:34:02.337196 from 127.0.0.1:41554 accepted //185.184.122.133:5755 [socks -> proxy]
+[20:34:07.013] STDOUT: 2026/03/21 20:34:07.012818 from tcp:127.0.0.1:41562 accepted tcp:1.1.1.1:443 [socks -> proxy]
+[20:34:17.010] STDOUT: 2026/03/21 20:34:17.009888 from tcp:127.0.0.1:58504 accepted tcp:1.1.1.1:443 [socks -> proxy]
+[20:34:27.014] STDOUT: 2026/03/21 20:34:27.013672 from tcp:127.0.0.1:36984 accepted tcp:1.1.1.1:443 [socks -> proxy]
+[20:34:37.011] STDOUT: 2026/03/21 20:34:37.011370 from tcp:127.0.0.1:34656 accepted tcp:1.1.1.1:443 [socks -> proxy]
+[20:34:47.762] STDOUT: Xray 26.2.6 (Xray, Penetrates Everything.) 12ee51e (go1.25.7 linux/amd64)
+[20:34:47.762] STDOUT: A unified platform for anti-censorship.
+[20:34:47.762] STDOUT: 2026/03/21 20:34:47.762361 [Info] infra/conf/serial: Reading config: &{Name:/home/arc/.config/vpnclient/config.json Format:json}
+[20:34:47.771] STDOUT: 2026/03/21 20:34:47.771239 [Warning] common/errors: The feature VLESS (with no Flow, etc.) is deprecated, not recommended for using and might be removed. Please migrate to VLESS with Flow & Seed as soon as possible.
+[20:34:47.781] STDOUT: 2026/03/21 20:34:47.780821 [Warning] core: Xray 26.2.6 started
+[20:34:49.750] STDOUT: 2026/03/21 20:34:49.749941 from tcp:127.0.0.1:42100 accepted tcp:1.1.1.1:80 [socks -> proxy]

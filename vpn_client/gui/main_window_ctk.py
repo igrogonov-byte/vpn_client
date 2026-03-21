@@ -76,7 +76,7 @@ class VPNMainWindow(ctk.CTkFrame):
             self.append_log("❌ Потеряно соединение с VPN")
 
             # 2. Вывод информационного окна
-            self.show_warning_dialog("Внимание", "Соединение с VPN потеряно")
+            self.show_warning_dialog("Внимание", "Соединение с VPN потеряно.Требуется реконнект")
 
             # 3. Выполняем тот же алгоритм, что и при нажатии кнопки «Отключить»
             self.disconnect()
