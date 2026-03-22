@@ -39,26 +39,24 @@ VERSION_FILE = BINARIES_DIR / "xray.version"
 BINARY_FILE = BINARIES_DIR / "xray"
 BINARY_FILE_WIN = BINARIES_DIR / "xray.exe"
 
-# Интервал проверки (7 дней)
 CHECK_INTERVAL_DAYS = 7
 
 
 class XrayUpdater:
     """Менеджер обновлений Xray-core"""
-    
+
     __slots__ = [
         'binaries_dir', 'version_file', 'binary_file',
         'on_update_available', 'on_update_downloaded', 'on_update_error',
-        '_last_check_file', '_http_session'
+        '_last_check_file'
     ]
-    
+
     def __init__(self, binaries_dir: Optional[Path] = None):
         self.binaries_dir = binaries_dir or BINARIES_DIR
         self.version_file = self.binaries_dir / "xray.version"
         self.binary_file = self._get_binary_path()
         self._last_check_file = self.binaries_dir / ".last_check"
-        self._http_session = None
-        
+
         # Callbacks
         self.on_update_available = None  # Вызывается когда есть обновление
         self.on_update_downloaded = None  # Вызывается после успешной загрузки
@@ -314,13 +312,11 @@ class XrayUpdater:
             return False
 
         logger.info(f"Загрузка {asset_name}...")
-        
+
         try:
-            # Создаем временный файл
             with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as tmp_file:
                 tmp_path = Path(tmp_file.name)
-            
-            # Загружаем файл
+
             if HAS_REQUESTS:
                 import requests
                 response = requests.get(download_url, stream=True, timeout=60)
@@ -491,10 +487,6 @@ class XrayUpdater:
         except Exception as e:
             logger.error(f"Ошибка распаковки: {e}", exc_info=True)
             return False
-
-    def _extract_binary(self, archive_path: Path) -> bool:
-        """Извлечь бинарник из архива (устаревший метод, использует атомарную версию)"""
-        return self._extract_binary_atomic(archive_path)
 
     def install_update(self, update_info: Dict[str, Any],
                        progress_callback: Optional[Callable[[int, int], None]] = None) -> bool:

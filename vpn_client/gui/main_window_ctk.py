@@ -3,9 +3,7 @@
 Современный строгий дизайн с серо-голубой цветовой схемой
 """
 import customtkinter as ctk
-from datetime import datetime
 import threading
-import subprocess
 
 from .styles import COLORS
 from .dialogs import MessageDialog, YesNoDialog, InputDialog
@@ -63,28 +61,22 @@ class VPNMainWindow(ctk.CTkFrame):
     def on_connection_lost(self):
         """Обработчик потери соединения (вызывается из мониторинга)"""
         def handle():
-            # 1. Запись в лог
+            # Запись в лог
             self.append_log("❌ Потеряно соединение с VPN")
 
-            # 2. Проверяем состояние окна
+            # Проверяем состояние окна
             is_hidden = self.app_state.get('is_hidden', False)
-            self.append_log(f"[DEBUG] Окно скрыто в трей: {is_hidden}")
 
-            # 3. Если окно скрыто в трей - показываем системное уведомление
+            # Если окно скрыто в трей - показываем системное уведомление
             if is_hidden:
                 from vpn_client.utils.notify import show_notification
-                self.append_log("[DEBUG] Вызываем show_notification...")
-                result = show_notification(
+                show_notification(
                     title="VPN упал",
                     message="Соединение с VPN потеряно. Требуется реконнект.",
                     app_name="VPN Client"
                 )
-                self.append_log(f"[DEBUG] Результат уведомления: {result}")
-            else:
-                # 4. Если окно видно - показываем диалог
-                self.show_warning_dialog("Внимание", "Соединение с VPN потеряно. Требуется реконнект")
 
-            # 5. Выполняем отключение
+            # Выполняем отключение
             self.disconnect()
 
         # Выполняем в главном потоке

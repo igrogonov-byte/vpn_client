@@ -64,14 +64,12 @@ class VPNController:
             if self.on_log:
                 self.on_log("Подключение к VPN...")
 
-            # Приведение типов с проверкой (из GUI всё приходит как строка)
             try:
                 local_port = int(config_data.get("local_port", 10808)) if config_data.get("local_port") else 10808
                 port = int(config_data["port"]) if config_data.get("port") else 443
             except (ValueError, TypeError) as e:
                 raise Exception(f"Неверный формат порта: {e}")
 
-            # Проверка обязательных полей
             if not config_data.get("address"):
                 raise Exception("Не указан адрес сервера")
             if not config_data.get("uuid"):
@@ -308,7 +306,6 @@ class VPNController:
             self.on_log(message)
 
     def _on_connection_lost(self):
-        """Вызывается когда мониторинг обнаружил потерю соединения"""
         if self.on_log:
             self.on_log("❌ Потеряно соединение с VPN")
 

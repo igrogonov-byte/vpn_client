@@ -63,7 +63,6 @@ class MessageDialog(DialogBuilder):
             master, title, width=400, height=180
         )
         
-        # Иконка
         icon_label = ctk.CTkLabel(
             main_frame,
             text=icon,
@@ -72,7 +71,6 @@ class MessageDialog(DialogBuilder):
         )
         icon_label.pack(pady=(15, 10))
         
-        # Сообщение
         message_label = ctk.CTkLabel(
             main_frame,
             text=message,
@@ -83,7 +81,6 @@ class MessageDialog(DialogBuilder):
         )
         message_label.pack(pady=(0, 20))
         
-        # Кнопка ОК
         ok_button = ctk.CTkButton(
             main_frame,
             text="ОК",
@@ -118,7 +115,6 @@ class YesNoDialog(DialogBuilder):
             master, title, width=400, height=180
         )
         
-        # Иконка
         icon_label = ctk.CTkLabel(
             main_frame,
             text="❓",
@@ -127,7 +123,6 @@ class YesNoDialog(DialogBuilder):
         )
         icon_label.pack(pady=(15, 10))
         
-        # Сообщение
         message_label = ctk.CTkLabel(
             main_frame,
             text=message,
@@ -138,7 +133,6 @@ class YesNoDialog(DialogBuilder):
         )
         message_label.pack(pady=(0, 20))
         
-        # Фрейм для кнопок
         buttons_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         buttons_frame.pack(pady=(0, 15))
         
@@ -150,7 +144,6 @@ class YesNoDialog(DialogBuilder):
             result['value'] = False
             dialog.destroy()
         
-        # Кнопка Да
         yes_button = ctk.CTkButton(
             buttons_frame,
             text="Да",
@@ -164,7 +157,6 @@ class YesNoDialog(DialogBuilder):
         )
         yes_button.pack(side="left", padx=(20, 10))
         
-        # Кнопка Нет
         no_button = ctk.CTkButton(
             buttons_frame,
             text="Нет",
@@ -206,7 +198,6 @@ class InputDialog(DialogBuilder):
             master, title, width=500, height=200
         )
         
-        # Текст запроса
         text_label = ctk.CTkLabel(
             main_frame,
             text=text,
@@ -216,7 +207,6 @@ class InputDialog(DialogBuilder):
         )
         text_label.pack(pady=(15, 5))
         
-        # Поле ввода
         entry = ctk.CTkEntry(
             main_frame,
             placeholder_text=placeholder,
@@ -229,7 +219,6 @@ class InputDialog(DialogBuilder):
         entry.pack(pady=(5, 15))
         entry.focus_set()
         
-        # Кнопки
         button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         button_frame.pack(pady=(0, 15))
         
