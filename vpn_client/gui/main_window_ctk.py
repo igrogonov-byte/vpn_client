@@ -672,9 +672,10 @@ class VPNMainWindow(ctk.CTkFrame):
 
     def save_profile_dialog(self):
         """Диалог сохранения профиля"""
-        dialog = ctk.CTkInputDialog(
+        dialog = self._create_text_input_dialog(
             title="Сохранение профиля",
-            text="Введите имя профиля:"
+            text="Введите имя профиля:",
+            placeholder="Мой профиль"
         )
         profile_name = dialog.get_input()
 
@@ -1362,11 +1363,115 @@ class VPNMainWindow(ctk.CTkFrame):
 
         threading.Thread(target=_measure, daemon=True).start()
 
+    def _create_text_input_dialog(self, title: str, text: str, placeholder: str = ""):
+        """Создание кастомного диалога для ввода текста с центрированием и контекстным меню"""
+        self.master.update_idletasks()
+        main_x = self.master.winfo_rootx()
+        main_y = self.master.winfo_rooty()
+        main_w = self.master.winfo_width()
+        main_h = self.master.winfo_height()
+
+        dialog_w = 500
+        dialog_h = 180
+        x = main_x + (main_w - dialog_w) // 2
+        y = main_y + (main_h - dialog_h) // 2
+
+        dialog = ctk.CTkToplevel(self.master)
+        dialog.title(title)
+        dialog.geometry(f"{dialog_w}x{dialog_h}+{x}+{y}")
+        dialog.resizable(False, False)
+        dialog.transient(self.master)
+        dialog.grab_set()
+
+        main_frame = ctk.CTkFrame(dialog, fg_color=COLORS["bg_secondary"])
+        main_frame.pack(fill="both", expand=True)
+
+        # Текст запроса
+        text_label = ctk.CTkLabel(
+            main_frame,
+            text=text,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="transparent",
+            text_color=COLORS["text_primary"]
+        )
+        text_label.pack(pady=(15, 10))
+
+        # Поле ввода
+        entry = ctk.CTkEntry(
+            main_frame,
+            placeholder_text=placeholder,
+            width=460,
+            height=40,
+            fg_color=COLORS["bg_tertiary"],
+            border_color=COLORS["border"],
+            text_color=COLORS["text_primary"]
+        )
+        entry.pack(pady=(0, 15))
+        self._add_context_menu(entry)
+
+        # Кнопки
+        button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        button_frame.pack(pady=(0, 10))
+
+        result = {"value": None}
+
+        def on_ok():
+            result["value"] = entry.get()
+            dialog.destroy()
+
+        def on_cancel():
+            dialog.destroy()
+
+        ok_button = ctk.CTkButton(
+            button_frame,
+            text="ОК",
+            width=100,
+            height=35,
+            fg_color=COLORS["accent_blue"],
+            hover_color=COLORS["accent_blue_hover"],
+            text_color="#ffffff",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=on_ok
+        )
+        ok_button.pack(side="left", padx=10)
+
+        cancel_button = ctk.CTkButton(
+            button_frame,
+            text="Отмена",
+            width=100,
+            height=35,
+            fg_color=COLORS["bg_primary"],
+            hover_color=COLORS["bg_secondary"],
+            text_color=COLORS["text_primary"],
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=on_cancel
+        )
+        cancel_button.pack(side="left", padx=10)
+
+        # Обработка Enter
+        entry.bind("<Return>", lambda e: on_ok())
+        dialog.bind("<Escape>", lambda e: dialog.destroy())
+
+        # Автофокус на поле ввода
+        dialog.after(100, lambda: entry.focus_set())
+
+        class DialogWrapper:
+            def __init__(self, d, res):
+                self._dialog = d
+                self._result = res
+
+            def get_input(self):
+                self._dialog.wait_window()
+                return self._result["value"]
+
+        return DialogWrapper(dialog, result)
+
     def import_from_link(self):
         """Импорт из VLESS ссылки"""
-        dialog = ctk.CTkInputDialog(
-            title="Импорт",
-            text="Вставьте VLESS ссылку:"
+        dialog = self._create_text_input_dialog(
+            title="Импорт из VLESS ссылки",
+            text="Вставьте VLESS ссылку:",
+            placeholder="vless://uuid@address:port?..."
         )
         link = dialog.get_input()
 
