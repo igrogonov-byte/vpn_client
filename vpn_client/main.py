@@ -44,7 +44,7 @@ def main():
 
     # Создание приложения
     app = ctk.CTk()
-    app.title("VPN Client - VLESS Reality xhttp")
+    app.title("VPN Client - VLESS_Reality/xhttp,gRPC,TCP/")
     app.geometry("840x683")
     app.minsize(630, 525)
 

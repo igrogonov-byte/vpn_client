@@ -1372,7 +1372,7 @@ class VPNMainWindow(ctk.CTkFrame):
         main_h = self.master.winfo_height()
 
         dialog_w = 500
-        dialog_h = 180
+        dialog_h = 200
         x = main_x + (main_w - dialog_w) // 2
         y = main_y + (main_h - dialog_h) // 2
 
@@ -1382,9 +1382,10 @@ class VPNMainWindow(ctk.CTkFrame):
         dialog.resizable(False, False)
         dialog.transient(self.master)
         dialog.grab_set()
+        dialog.attributes('-topmost', True)
 
         main_frame = ctk.CTkFrame(dialog, fg_color=COLORS["bg_secondary"])
-        main_frame.pack(fill="both", expand=True)
+        main_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Текст запроса
         text_label = ctk.CTkLabel(
@@ -1394,7 +1395,7 @@ class VPNMainWindow(ctk.CTkFrame):
             fg_color="transparent",
             text_color=COLORS["text_primary"]
         )
-        text_label.pack(pady=(15, 10))
+        text_label.pack(pady=(5, 10))
 
         # Поле ввода
         entry = ctk.CTkEntry(
@@ -1404,14 +1405,18 @@ class VPNMainWindow(ctk.CTkFrame):
             height=40,
             fg_color=COLORS["bg_tertiary"],
             border_color=COLORS["border"],
+            border_width=2,
             text_color=COLORS["text_primary"]
         )
-        entry.pack(pady=(0, 15))
-        self._add_context_menu(entry)
+        entry.pack(pady=(0, 15), fill="x", padx=10)
+        entry.focus_set()
+
+        # Добавляем контекстное меню для поля ввода
+        self._add_context_menu_to_widget(entry, dialog)
 
         # Кнопки
         button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        button_frame.pack(pady=(0, 10))
+        button_frame.pack(pady=(0, 5))
 
         result = {"value": None}
 
@@ -1433,7 +1438,7 @@ class VPNMainWindow(ctk.CTkFrame):
             font=ctk.CTkFont(size=14, weight="bold"),
             command=on_ok
         )
-        ok_button.pack(side="left", padx=10)
+        ok_button.pack(side="left", padx=10, expand=True)
 
         cancel_button = ctk.CTkButton(
             button_frame,
@@ -1446,14 +1451,11 @@ class VPNMainWindow(ctk.CTkFrame):
             font=ctk.CTkFont(size=14, weight="bold"),
             command=on_cancel
         )
-        cancel_button.pack(side="left", padx=10)
+        cancel_button.pack(side="left", padx=10, expand=True)
 
-        # Обработка Enter
+        # Обработка Enter и Escape
         entry.bind("<Return>", lambda e: on_ok())
-        dialog.bind("<Escape>", lambda e: dialog.destroy())
-
-        # Автофокус на поле ввода
-        dialog.after(100, lambda: entry.focus_set())
+        dialog.bind("<Escape>", lambda e: on_cancel())
 
         class DialogWrapper:
             def __init__(self, d, res):
@@ -1465,6 +1467,74 @@ class VPNMainWindow(ctk.CTkFrame):
                 return self._result["value"]
 
         return DialogWrapper(dialog, result)
+
+    def _add_context_menu_to_widget(self, widget, dialog):
+        """Добавление контекстного меню (ПКМ) к виджету в диалоге"""
+        context_menu_ref = [None]
+
+        def close_menu():
+            if context_menu_ref[0]:
+                try:
+                    context_menu_ref[0].destroy()
+                except:
+                    pass
+                context_menu_ref[0] = None
+
+        def show_menu(event):
+            close_menu()
+
+            context_menu_ref[0] = ctk.CTkToplevel(dialog)
+            context_menu_ref[0].overrideredirect(True)
+            context_menu_ref[0].attributes('-topmost', True)
+
+            menu_frame = ctk.CTkFrame(
+                context_menu_ref[0],
+                fg_color=COLORS["bg_tertiary"],
+                corner_radius=10,
+                border_width=1,
+                border_color=COLORS["border"]
+            )
+            menu_frame.pack(fill="both", expand=True, padx=2, pady=2)
+
+            menu_items = [
+                ("📋 Копировать", lambda: widget.event_generate('<<Copy>>')),
+                ("📥 Вставить", lambda: widget.event_generate('<<Paste>>')),
+                ("✂️ Вырезать", lambda: widget.event_generate('<<Cut>>')),
+                ("⎯" * 15, None),
+                ("✅ Выделить всё", lambda: widget.event_generate('<<SelectAll>>')),
+            ]
+
+            for text, command in menu_items:
+                if command is None:
+                    separator = ctk.CTkFrame(
+                        menu_frame,
+                        fg_color=COLORS["border"],
+                        height=1
+                    )
+                    separator.pack(fill="x", pady=4, padx=5)
+                else:
+                    btn = ctk.CTkButton(
+                        menu_frame,
+                        text=text,
+                        width=150,
+                        height=25,
+                        fg_color="transparent",
+                        hover_color=COLORS["bg_primary"],
+                        text_color=COLORS["text_primary"],
+                        font=ctk.CTkFont(size=12),
+                        anchor="w",
+                        command=command
+                    )
+                    btn.pack(fill="x", padx=3, pady=1)
+
+            # Закрытие по клику
+            context_menu_ref[0].bind("<Button-1>", lambda e: close_menu())
+            context_menu_ref[0].bind("<Button-3>", lambda e: close_menu())
+
+            # Позиционирование
+            context_menu_ref[0].geometry(f"+{event.x_root}+{event.y_root}")
+
+        widget.bind("<Button-3>", show_menu)
 
     def import_from_link(self):
         """Импорт из VLESS ссылки"""
