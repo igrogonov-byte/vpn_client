@@ -55,9 +55,8 @@ class VPNController:
         import sys
         if sys.platform == "win32":
             return Path.home() / "AppData" / "Roaming" / "VPNClient"
-        elif sys.platform == "darwin":
-            return Path.home() / "Library" / "Application Support" / "VPNClient"
         else:
+            # Linux
             return Path.home() / ".config" / "vpnclient"
 
     def connect(self, config_data: Dict[str, Any]) -> bool:

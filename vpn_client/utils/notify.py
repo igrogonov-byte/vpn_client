@@ -45,7 +45,7 @@ def show_notification(title: str, message: str, app_name: str = "VPN Client") ->
             logger.error(f"Ошибка при показе уведомления (Linux): {e}")
             return False
 
-    # Windows/macOS - используем plyer
+    # Windows - используем plyer
     try:
         from plyer import notification
 

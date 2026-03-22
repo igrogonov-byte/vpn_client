@@ -125,36 +125,29 @@ class XrayUpdater:
         return None
     
     def _get_platform_asset(self) -> Optional[str]:
-        """Получить название архива для текущей платформы"""
+        """Получить название архива для текущей платформы (только Linux/Windows x86_64)"""
         platform_map = {
             ('linux', 'x86_64'): 'xray-linux-64.zip',
             ('linux', 'amd64'): 'xray-linux-64.zip',
-            ('linux', 'aarch64'): 'xray-linux-arm64-v8a.zip',
-            ('linux', 'arm64'): 'xray-linux-arm64-v8a.zip',
-            ('darwin', 'x86_64'): 'xray-macos-64.zip',
-            ('darwin', 'arm64'): 'xray-macos-arm64-v8a.zip',
             ('win32', 'x86_64'): 'xray-windows-64.zip',
             ('win32', 'AMD64'): 'xray-windows-64.zip',
-            ('win32', 'arm64'): 'xray-windows-arm64-v8a.zip',
         }
-        
+
         import platform
         system = platform.system().lower()
         machine = platform.machine()
-        
+
         # Пробуем точное совпадение
         key = (system, machine)
         if key in platform_map:
             return platform_map[key]
-        
-        # Fallback для Linux
+
+        # Fallback для Linux/Windows
         if system == 'linux':
             return 'xray-linux-64.zip'
-        elif system == 'darwin':
-            return 'xray-macos-64.zip'
         elif system == 'windows':
             return 'xray-windows-64.zip'
-        
+
         return None
     
     def check_for_updates(self, force: bool = False) -> Optional[Dict[str, Any]]:

@@ -263,7 +263,7 @@ class XrayManager:
             log.warning("process или stdout = None, выходим")
             return
 
-        # Используем poll для эффективного ожидания на Linux/macOS
+        # Используем poll для эффективного ожидания на Linux
         use_poll = sys.platform != "win32"
         poller = None
         if use_poll:
@@ -287,7 +287,7 @@ class XrayManager:
                         log.error(f"Ошибка чтения остатка: {e}")
                     break
 
-                # Ожидание данных через poll (Linux/macOS)
+                # Ожидание данных через poll (Linux)
                 if use_poll and poller:
                     try:
                         events = poller.poll(check_interval)

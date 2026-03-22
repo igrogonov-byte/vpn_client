@@ -1,6 +1,6 @@
 """
 Управление автозапуском
-Кроссплатформенная реализация для Windows, Linux, macOS
+Кроссплатформенная реализация для Windows, Linux
 """
 import sys
 import os
@@ -35,26 +35,20 @@ class AutoStart:
         """Проверка статуса автозапуска"""
         if sys.platform == "win32":
             return self._is_enabled_windows()
-        elif sys.platform == "darwin":
-            return self._is_enabled_macos()
         else:
             return self._is_enabled_linux()
-    
+
     def enable(self) -> bool:
         """Включение автозапуска"""
         if sys.platform == "win32":
             return self._enable_windows()
-        elif sys.platform == "darwin":
-            return self._enable_macos()
         else:
             return self._enable_linux()
-    
+
     def disable(self) -> bool:
         """Отключение автозапуска"""
         if sys.platform == "win32":
             return self._disable_windows()
-        elif sys.platform == "darwin":
-            return self._disable_macos()
         else:
             return self._disable_linux()
     
@@ -179,78 +173,4 @@ X-GNOME-Autostart-enabled=true
             
         except Exception as e:
             logger.error(f"Ошибка отключения автозапуска Linux: {e}")
-            return False
-    
-    # === macOS ===
-    
-    def _is_enabled_macos(self) -> bool:
-        """Проверка автозапуска на macOS"""
-        plist_file = self._get_macos_plist_path()
-        return plist_file.exists()
-    
-    def _get_macos_plist_path(self) -> Path:
-        """Получение пути к .plist файлу"""
-        return Path.home() / 'Library' / 'LaunchAgents' / f'{self.app_name}.plist'
-    
-    def _enable_macos(self) -> bool:
-        """Включение автозапуска на macOS"""
-        try:
-            plist_file = self._get_macos_plist_path()
-            plist_file.parent.mkdir(parents=True, exist_ok=True)
-            
-            content = f"""<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>{self.app_name}</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>{self.app_path}</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>Hide</key>
-    <true/>
-</dict>
-</plist>
-"""
-            
-            with open(plist_file, 'w') as f:
-                f.write(content)
-            
-            # Загрузка launchd
-            subprocess.run(
-                ['launchctl', 'load', str(plist_file)],
-                check=False,
-                capture_output=True
-            )
-            
-            logger.info(f"Автозапуск включен: {plist_file}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Ошибка включения автозапуска macOS: {e}")
-            return False
-    
-    def _disable_macos(self) -> bool:
-        """Отключение автозапуска на macOS"""
-        try:
-            plist_file = self._get_macos_plist_path()
-            
-            # Выгрузка из launchd
-            subprocess.run(
-                ['launchctl', 'unload', str(plist_file)],
-                check=False,
-                capture_output=True
-            )
-            
-            if plist_file.exists():
-                plist_file.unlink()
-            
-            logger.info("Автозапуск отключен")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Ошибка отключения автозапуска macOS: {e}")
             return False

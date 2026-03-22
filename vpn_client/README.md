@@ -6,11 +6,11 @@
 
 - ✅ VLESS Reality с xhttp транспортом
 - ✅ Импорт конфигурации из VLESS ссылок
-- ✅ Системный прокси (Windows/Linux/macOS)
+- ✅ Системный прокси (Windows/Linux)
 - ✅ Автозапуск
 - ✅ Системный трей
 - ✅ Логи подключения
-- ✅ Кроссплатформенность (Windows, Linux, macOS)
+- ✅ Кроссплатформенность (Windows, Linux x86_64)
 
 ## Требования
 
@@ -31,21 +31,17 @@ pip install -r requirements.txt
 
 - **Windows**: https://github.com/XTLS/Xray-core/releases (xray-windows-64.zip)
 - **Linux**: https://github.com/XTLS/Xray-core/releases (xray-linux-64.zip)
-- **macOS**: https://github.com/XTLS/Xray-core/releases (xray-macos-64.zip)
 
 Разархивируйте и поместите бинарник в:
 ```
 vpn_client/binaries/xray.exe    # Windows
-vpn_client/binaries/xray        # Linux/macOS
+vpn_client/binaries/xray        # Linux
 ```
 
 Или установите системно:
 ```bash
 # Linux
 sudo apt install xray-core
-
-# macOS
-brew install xray
 ```
 
 ## Запуск
@@ -146,7 +142,6 @@ vpn_client/
 ### "Не работает системный прокси"
 - **Linux**: Требуется GNOME (gsettings)
 - **Windows**: Требуется доступ к реестру
-- **macOS**: Требуется networksetup
 
 ## Лицензия
 

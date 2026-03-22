@@ -1,6 +1,6 @@
 """
 Управление системным прокси
-Кроссплатформенная реализация для Windows, Linux, macOS
+Кроссплатформенная реализация для Windows, Linux
 """
 import sys
 import subprocess
@@ -23,24 +23,20 @@ class SystemProxy:
     def enable(self, host: str = "127.0.0.1", port: int = 10808) -> bool:
         """
         Включение системного прокси
-        
+
         Args:
             host: Хост прокси (обычно 127.0.0.1)
             port: Порт прокси
         """
         if sys.platform == "win32":
             return self._enable_windows(host, port)
-        elif sys.platform == "darwin":
-            return self._enable_macos(host, port)
         else:
             return self._enable_linux(host, port)
-    
+
     def disable(self) -> bool:
         """Отключение системного прокси"""
         if sys.platform == "win32":
             return self._disable_windows()
-        elif sys.platform == "darwin":
-            return self._disable_macos()
         else:
             return self._disable_linux()
     
@@ -253,84 +249,4 @@ class SystemProxy:
 
         except Exception as e:
             logger.error(f"Ошибка отключения прокси Linux: {e}", exc_info=True)
-            return False
-    
-    # === macOS ===
-    
-    def _enable_macos(self, host: str, port: int) -> bool:
-        """Включение прокси на macOS"""
-        try:
-            # Получение списка сетевых интерфейсов
-            result = subprocess.run(
-                ["networksetup", "-listallnetworkservices"],
-                capture_output=True,
-                text=True,
-                check=False
-            )
-            
-            services = [line for line in result.stdout.split('\n')[1:] if line and line != "*"]
-            
-            for service in services:
-                # HTTP прокси
-                subprocess.run(
-                    ["networksetup", "-setwebproxy", service, host, str(port)],
-                    check=False,
-                    capture_output=True
-                )
-                # HTTPS прокси
-                subprocess.run(
-                    ["networksetup", "-setsecurewebproxy", service, host, str(port)],
-                    check=False,
-                    capture_output=True
-                )
-                # SOCKS прокси
-                subprocess.run(
-                    ["networksetup", "-setsocksfirewallproxy", service, host, str(port)],
-                    check=False,
-                    capture_output=True
-                )
-            
-            logger.info(f"Системный прокси включен: {host}:{port}")
-            self.is_enabled = True
-            return True
-            
-        except Exception as e:
-            logger.error(f"Ошибка включения прокси macOS: {e}")
-            return False
-    
-    def _disable_macos(self) -> bool:
-        """Отключение прокси на macOS"""
-        try:
-            result = subprocess.run(
-                ["networksetup", "-listallnetworkservices"],
-                capture_output=True,
-                text=True,
-                check=False
-            )
-            
-            services = [line for line in result.stdout.split('\n')[1:] if line and line != "*"]
-            
-            for service in services:
-                subprocess.run(
-                    ["networksetup", "-setwebproxystate", service, "off"],
-                    check=False,
-                    capture_output=True
-                )
-                subprocess.run(
-                    ["networksetup", "-setsecurewebproxystate", service, "off"],
-                    check=False,
-                    capture_output=True
-                )
-                subprocess.run(
-                    ["networksetup", "-setsocksfirewallproxystate", service, "off"],
-                    check=False,
-                    capture_output=True
-                )
-            
-            logger.info("Системный прокси отключен")
-            self.is_enabled = False
-            return True
-            
-        except Exception as e:
-            logger.error(f"Ошибка отключения прокси macOS: {e}")
             return False

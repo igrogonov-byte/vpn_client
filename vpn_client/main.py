@@ -1,7 +1,8 @@
-#!/usr/bin/env python3
+-                           #!/usr/bin/env python3
 """
 VPN Client - VLESS Reality xhttp
 GUI на CustomTkinter + pystray (правильная работа в трее)
+Поддерживаемые платформы: Windows x86_64, Linux x86_64
 """
 import sys
 import os

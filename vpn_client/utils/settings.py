@@ -16,18 +16,17 @@ class SettingsManager:
     def __init__(self, config_dir: Optional[str] = None):
         from pathlib import Path
         import sys
-        
+
         if config_dir:
             self.config_dir = Path(config_dir)
         else:
             # Директория конфигурации по умолчанию
             if sys.platform == "win32":
                 self.config_dir = Path.home() / "AppData" / "Roaming" / "VPNClient"
-            elif sys.platform == "darwin":
-                self.config_dir = Path.home() / "Library" / "Application Support" / "VPNClient"
             else:
+                # Linux
                 self.config_dir = Path.home() / ".config" / "vpnclient"
-        
+
         self.config_dir.mkdir(parents=True, exist_ok=True)
         self.settings_file = self.config_dir / "settings.json"
     
