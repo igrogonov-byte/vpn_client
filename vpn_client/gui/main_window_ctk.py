@@ -1021,6 +1021,7 @@ class VPNMainWindow(ctk.CTkFrame):
         dialog.title("⚠️ Введите настройки")
         dialog.geometry(f"{dialog_w}x{dialog_h}+{x}+{y}")
         dialog.resizable(False, False)
+        dialog.update_idletasks()  # Важно! Обновляем перед grab_set
         dialog.transient(self.master)
         dialog.grab_set()
 
