@@ -61,13 +61,10 @@ class VPNMainWindow(ctk.CTkFrame):
     def on_connection_lost(self):
         """Обработчик потери соединения (вызывается из мониторинга)"""
         def handle():
-            # Запись в лог
             self.append_log("❌ Потеряно соединение с VPN")
 
-            # Проверяем состояние окна
             is_hidden = self.app_state.get('is_hidden', False)
 
-            # Если окно скрыто в трей - показываем системное уведомление
             if is_hidden:
                 from vpn_client.utils.notify import show_notification
                 show_notification(
@@ -75,11 +72,11 @@ class VPNMainWindow(ctk.CTkFrame):
                     message="Соединение с VPN потеряно. Требуется реконнект.",
                     app_name="VPN Client"
                 )
+            else:
+                self.show_warning_dialog("Внимание", "Соединение с VPN потеряно. Требуется реконнект")
 
-            # Выполняем отключение
             self.disconnect()
 
-        # Выполняем в главном потоке
         self.master.after(0, handle)
 
     def load_xray_version(self):
