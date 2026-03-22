@@ -82,6 +82,8 @@ def main():
     def on_exit(icon, item):
         """Выход"""
         controller.disconnect()
+        # Очищаем форму подключения
+        app.after(0, window.clear_connection_form)
         icon.stop()
         app.quit()
 

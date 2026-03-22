@@ -45,13 +45,10 @@ class VPNMainWindow(ctk.CTkFrame):
         self.controller.on_update_available = self.on_update_available_auto
         self.controller.on_connection_lost = self.on_connection_lost
 
-        # Загрузка сохранённых настроек
-        self.load_settings()
-
         # Автозапуск прокси если указано
         if self.auto_start_proxy:
             self.master.after(1000, self.auto_enable_proxy)
-        
+
         # Загрузка версии Xray
         self.master.after(500, self.load_xray_version)
     
@@ -349,7 +346,23 @@ class VPNMainWindow(ctk.CTkFrame):
             height=35,
             command=self.import_from_link
         )
-        self.btn_import.pack(side="left")
+        self.btn_import.pack(side="left", padx=(0, 15))
+
+        # Метка текущего профиля
+        ctk.CTkLabel(
+            self.btn_import_frame,
+            text="Текущий профиль:",
+            font=ctk.CTkFont(size=12),
+            text_color=COLORS["text_secondary"]
+        ).pack(side="left")
+
+        self.current_profile_label = ctk.CTkLabel(
+            self.btn_import_frame,
+            text="—",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=COLORS["text_primary"]
+        )
+        self.current_profile_label.pack(side="left", padx=(5, 10))
 
         # Общий стиль для меток
         label_font = ctk.CTkFont(size=13, weight="bold")
@@ -655,10 +668,11 @@ class VPNMainWindow(ctk.CTkFrame):
         """Обновление списка профилей в ComboBox"""
         profile_names = self.controller.get_profile_names()
         self.combo_profiles.configure(values=profile_names)
-        if profile_names:
-            self.combo_profiles.set(profile_names[0])
-        else:
-            self.combo_profiles.set("Новый профиль...")
+        # При инициализации показываем "..."
+        self.combo_profiles.set("...")
+        # Сбрасываем метку текущего профиля
+        if hasattr(self, 'current_profile_label'):
+            self.current_profile_label.configure(text="—")
 
     def on_profile_selected(self, profile_name):
         """Обработка выбора профиля"""
@@ -669,6 +683,9 @@ class VPNMainWindow(ctk.CTkFrame):
         if profile:
             self._fill_form_from_config(profile)
             self.append_log(f"✅ Профиль '{profile_name}' загружен")
+            # Обновляем метку текущего профиля
+            if hasattr(self, 'current_profile_label'):
+                self.current_profile_label.configure(text=profile_name)
 
     def save_profile_dialog(self):
         """Диалог сохранения профиля"""
@@ -692,6 +709,9 @@ class VPNMainWindow(ctk.CTkFrame):
                 self.append_log(f"✅ Профиль '{profile_name}' сохранен")
                 self.refresh_profiles()
                 self.combo_profiles.set(profile_name)
+                # Обновляем метку текущего профиля
+                if hasattr(self, 'current_profile_label'):
+                    self.current_profile_label.configure(text=profile_name)
             else:
                 self.show_error_dialog("Ошибка", "Не удалось сохранить профиль")
 
@@ -699,7 +719,7 @@ class VPNMainWindow(ctk.CTkFrame):
         """Диалог удаления профиля"""
         profile_name = self.combo_profiles.get()
 
-        if not profile_name or profile_name == "Новый профиль...":
+        if not profile_name or profile_name == "...":
             self.show_info_dialog("Информация", "Выберите профиль для удаления")
             return
 
@@ -707,6 +727,9 @@ class VPNMainWindow(ctk.CTkFrame):
             if self.controller.delete_profile(profile_name):
                 self.append_log(f"🗑 Профиль '{profile_name}' удален")
                 self.refresh_profiles()
+                # Сбрасываем метку текущего профиля
+                if hasattr(self, 'current_profile_label'):
+                    self.current_profile_label.configure(text="—")
             else:
                 self.show_error_dialog("Ошибка", "Не удалось удалить профиль")
 
@@ -1249,6 +1272,31 @@ class VPNMainWindow(ctk.CTkFrame):
         self._connection_failures = 0  # Сброс счётчика при отключении
         self.update_ui_connected(False)
         self.append_log("Отключено")
+
+    def clear_connection_form(self):
+        """Очистка формы подключения при выходе"""
+        # Очищаем все поля ввода
+        self.edit_address.delete(0, 'end')
+        self.spin_port.delete(0, 'end')
+        self.edit_uuid.delete(0, 'end')
+        self.edit_sni.delete(0, 'end')
+        self.edit_public_key.delete(0, 'end')
+        self.edit_short_id.delete(0, 'end')
+        self.combo_flow.set("")
+        self.combo_transport.set("xhttp")
+        self.edit_service_name.delete(0, 'end')
+        self.edit_service_name.insert(0, "grpc")
+        self.spin_local_port.delete(0, 'end')
+        self.spin_local_port.insert(0, "10808")
+        
+        # Сбрасываем профиль
+        if hasattr(self, 'current_profile_label'):
+            self.current_profile_label.configure(text="—")
+        self.combo_profiles.set("...")
+        
+        # Отключаем VPN если подключено
+        if self.is_connected:
+            self.disconnect()
 
     def update_ui_connected(self, connected: bool):
         """Обновление UI при подключении"""
