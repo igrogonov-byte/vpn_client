@@ -895,8 +895,12 @@ class VPNMainWindow(ctk.CTkFrame):
 
     def connect(self):
         """Подключение"""
-        # Сбор данных из формы
+        # Проверка что настройки введены
         config_data = self._get_form_config()
+        
+        if not config_data.get("address") or not config_data.get("uuid"):
+            self.show_missing_settings_dialog()
+            return
 
         # Сохранение порта для измерения latency
         try:
@@ -996,6 +1000,70 @@ class VPNMainWindow(ctk.CTkFrame):
 
         # Закрытие по Enter
         dialog.bind("<Return>", lambda e: dialog.destroy())
+        
+        # Ждём закрытия диалога
+        self.master.wait_window(dialog)
+
+    def show_missing_settings_dialog(self):
+        """Диалог о необходимости ввести настройки подключения"""
+        self.master.update_idletasks()
+        main_x = self.master.winfo_rootx()
+        main_y = self.master.winfo_rooty()
+        main_w = self.master.winfo_width()
+        main_h = self.master.winfo_height()
+
+        dialog_w = 450
+        dialog_h = 200
+        x = main_x + (main_w - dialog_w) // 2
+        y = main_y + (main_h - dialog_h) // 2
+
+        dialog = ctk.CTkToplevel(self.master)
+        dialog.title("⚠️ Введите настройки")
+        dialog.geometry(f"{dialog_w}x{dialog_h}+{x}+{y}")
+        dialog.resizable(False, False)
+        dialog.transient(self.master)
+        dialog.grab_set()
+
+        main_frame = ctk.CTkFrame(dialog, fg_color=COLORS["bg_secondary"])
+        main_frame.pack(fill="both", expand=True)
+
+        # Иконка
+        icon_label = ctk.CTkLabel(
+            main_frame,
+            text="⚠️",
+            font=ctk.CTkFont(size=40),
+            fg_color="transparent"
+        )
+        icon_label.pack(pady=(15, 10))
+
+        # Сообщение
+        message_label = ctk.CTkLabel(
+            main_frame,
+            text="Введите настройки подключения:\n\n• Адрес сервера\n• UUID",
+            font=ctk.CTkFont(size=14),
+            fg_color="transparent",
+            text_color=COLORS["text_primary"],
+            justify="center"
+        )
+        message_label.pack(pady=(0, 20))
+
+        # Кнопка ОК
+        ok_button = ctk.CTkButton(
+            main_frame,
+            text="ОК",
+            width=120,
+            height=35,
+            fg_color=COLORS["accent_blue"],
+            hover_color=COLORS["accent_blue_hover"],
+            text_color="#ffffff",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=dialog.destroy
+        )
+        ok_button.pack(pady=(0, 15))
+        ok_button.focus_set()
+        dialog.bind("<Return>", lambda e: dialog.destroy())
+
+        self.master.wait_window(dialog)
 
     def show_error_dialog(self, title: str, message: str):
         """Показ диалога ошибки"""
