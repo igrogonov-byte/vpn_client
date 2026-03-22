@@ -219,6 +219,97 @@ class InputDialog(DialogBuilder):
         entry.pack(pady=(5, 15))
         entry.focus_set()
         
+        # Добавляем контекстное меню (ПКМ) для вставки
+        def show_context_menu(event):
+            context_menu = ctk.CTkToplevel(dialog)
+            context_menu.overrideredirect(True)
+            context_menu.attributes('-topmost', True)
+            
+            menu_frame = ctk.CTkFrame(
+                context_menu,
+                fg_color=COLORS["bg_tertiary"],
+                corner_radius=8,
+                border_width=1,
+                border_color=COLORS["border"]
+            )
+            menu_frame.pack(fill="both", expand=True, padx=2, pady=2)
+            
+            def paste():
+                try:
+                    # Получаем текст из буфера обмена
+                    text = dialog.clipboard_get()
+                    if text:
+                        # Вставляем в позицию курсора
+                        entry.insert('insert', text)
+                except Exception:
+                    pass  # Буфер пуст или ошибка
+                context_menu.destroy()
+            
+            def copy():
+                try:
+                    # Копируем выделенное в буфер
+                    text = entry.get()
+                    if entry.select_present():
+                        start = int(entry.index('sel.first'))
+                        end = int(entry.index('sel.last'))
+                        text = entry.get()[start:end]
+                    dialog.clipboard_clear()
+                    dialog.clipboard_append(text)
+                except Exception:
+                    pass
+                context_menu.destroy()
+            
+            def select_all():
+                entry.select_range(0, 'end')
+                context_menu.destroy()
+            
+            ctk.CTkButton(
+                menu_frame,
+                text="📋 Вставить",
+                width=120,
+                height=25,
+                fg_color="transparent",
+                hover_color=COLORS["bg_primary"],
+                text_color=COLORS["text_primary"],
+                font=ctk.CTkFont(size=12),
+                command=paste
+            ).pack(fill="x", padx=3, pady=1)
+            
+            ctk.CTkButton(
+                menu_frame,
+                text="📋 Копировать",
+                width=120,
+                height=25,
+                fg_color="transparent",
+                hover_color=COLORS["bg_primary"],
+                text_color=COLORS["text_primary"],
+                font=ctk.CTkFont(size=12),
+                command=copy
+            ).pack(fill="x", padx=3, pady=1)
+            
+            ctk.CTkButton(
+                menu_frame,
+                text="✅ Выделить всё",
+                width=120,
+                height=25,
+                fg_color="transparent",
+                hover_color=COLORS["bg_primary"],
+                text_color=COLORS["text_primary"],
+                font=ctk.CTkFont(size=12),
+                command=select_all
+            ).pack(fill="x", padx=3, pady=1)
+            
+            # Позиционирование меню
+            context_menu.geometry(f"+{event.x_root}+{event.y_root}")
+            
+            # Закрытие по клику вне меню
+            def close_menu(e):
+                context_menu.destroy()
+            
+            dialog.bind("<Button-1>", close_menu, add='+')
+        
+        entry.bind("<Button-3>", show_context_menu)
+        
         button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         button_frame.pack(pady=(0, 15))
         
