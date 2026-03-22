@@ -7,20 +7,8 @@ from datetime import datetime
 import threading
 import subprocess
 
-
-# Цветовая палитра
-COLORS = {
-    "bg_primary": "#1a1f2e",       # Основной фон (темно-серый)
-    "bg_secondary": "#242b3d",     # Вторичный фон (панели)
-    "bg_tertiary": "#2d3548",      # Третичный фон (поля ввода)
-    "accent_blue": "#4a9eff",      # Акцент голубой
-    "accent_blue_hover": "#3a8eef", # Акцент при наведении
-    "success": "#2ecc71",          # Успех
-    "danger": "#e74c3c",           # Опасность
-    "text_primary": "#ecf0f1",     # Основной текст
-    "text_secondary": "#95a5a6",   # Вторичный текст
-    "border": "#3a4255",           # Границы
-}
+from .styles import COLORS
+from .dialogs import MessageDialog, YesNoDialog, InputDialog
 
 
 class VPNMainWindow(ctk.CTkFrame):
@@ -1010,265 +998,34 @@ class VPNMainWindow(ctk.CTkFrame):
         dialog.bind("<Return>", lambda e: dialog.destroy())
 
     def show_error_dialog(self, title: str, message: str):
-        """Показ диалога ошибки в стиле GUI"""
-        self.master.update_idletasks()
-        main_x = self.master.winfo_rootx()
-        main_y = self.master.winfo_rooty()
-        main_w = self.master.winfo_width()
-        main_h = self.master.winfo_height()
-        
-        dialog_w = 400
-        dialog_h = 180
-        x = main_x + (main_w - dialog_w) // 2
-        y = main_y + (main_h - dialog_h) // 2
-
-        dialog = ctk.CTkToplevel(self.master)
-        dialog.title(title)
-        dialog.geometry(f"{dialog_w}x{dialog_h}+{x}+{y}")
-        dialog.resizable(False, False)
-
-        dialog.transient(self.master)
-        dialog.grab_set()
-
-        main_frame = ctk.CTkFrame(dialog, fg_color=COLORS["bg_secondary"])
-        main_frame.pack(fill="both", expand=True)
-
-        icon_label = ctk.CTkLabel(
-            main_frame,
-            text="❌",
-            font=ctk.CTkFont(size=40),
-            fg_color="transparent"
+        """Показ диалога ошибки"""
+        MessageDialog.show(
+            self.master, title, message,
+            icon="❌",
+            button_color=COLORS["danger"],
+            button_hover="#c0392b"
         )
-        icon_label.pack(pady=(15, 10))
-
-        message_label = ctk.CTkLabel(
-            main_frame,
-            text=message,
-            font=ctk.CTkFont(size=14),
-            fg_color="transparent",
-            text_color=COLORS["text_primary"],
-            wraplength=340
-        )
-        message_label.pack(pady=(0, 20))
-
-        ok_button = ctk.CTkButton(
-            main_frame,
-            text="ОК",
-            width=120,
-            height=35,
-            fg_color=COLORS["danger"],
-            hover_color="#c0392b",
-            text_color="#ffffff",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            command=dialog.destroy
-        )
-        ok_button.pack(pady=(0, 15))
-        ok_button.focus_set()
-        dialog.bind("<Return>", lambda e: dialog.destroy())
 
     def show_info_dialog(self, title: str, message: str):
-        """Показ информационного диалога в стиле GUI"""
-        self.master.update_idletasks()
-        main_x = self.master.winfo_rootx()
-        main_y = self.master.winfo_rooty()
-        main_w = self.master.winfo_width()
-        main_h = self.master.winfo_height()
-        
-        dialog_w = 400
-        dialog_h = 180
-        x = main_x + (main_w - dialog_w) // 2
-        y = main_y + (main_h - dialog_h) // 2
-
-        dialog = ctk.CTkToplevel(self.master)
-        dialog.title(title)
-        dialog.geometry(f"{dialog_w}x{dialog_h}+{x}+{y}")
-        dialog.resizable(False, False)
-
-        dialog.transient(self.master)
-        dialog.grab_set()
-
-        main_frame = ctk.CTkFrame(dialog, fg_color=COLORS["bg_secondary"])
-        main_frame.pack(fill="both", expand=True)
-
-        icon_label = ctk.CTkLabel(
-            main_frame,
-            text="ℹ️",
-            font=ctk.CTkFont(size=40),
-            fg_color="transparent"
+        """Показ информационного диалога"""
+        MessageDialog.show(
+            self.master, title, message,
+            icon="ℹ️",
+            button_color=COLORS["accent_blue"]
         )
-        icon_label.pack(pady=(15, 10))
-
-        message_label = ctk.CTkLabel(
-            main_frame,
-            text=message,
-            font=ctk.CTkFont(size=14),
-            fg_color="transparent",
-            text_color=COLORS["text_primary"],
-            wraplength=340
-        )
-        message_label.pack(pady=(0, 20))
-
-        ok_button = ctk.CTkButton(
-            main_frame,
-            text="ОК",
-            width=120,
-            height=35,
-            fg_color=COLORS["accent_blue"],
-            hover_color=COLORS["accent_blue_hover"],
-            text_color="#ffffff",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            command=dialog.destroy
-        )
-        ok_button.pack(pady=(0, 15))
-        ok_button.focus_set()
-        dialog.bind("<Return>", lambda e: dialog.destroy())
 
     def show_warning_dialog(self, title: str, message: str):
-        """Показ диалога предупреждения в стиле GUI"""
-        self.master.update_idletasks()
-        main_x = self.master.winfo_rootx()
-        main_y = self.master.winfo_rooty()
-        main_w = self.master.winfo_width()
-        main_h = self.master.winfo_height()
-        
-        dialog_w = 400
-        dialog_h = 180
-        x = main_x + (main_w - dialog_w) // 2
-        y = main_y + (main_h - dialog_h) // 2
-
-        dialog = ctk.CTkToplevel(self.master)
-        dialog.title(title)
-        dialog.geometry(f"{dialog_w}x{dialog_h}+{x}+{y}")
-        dialog.resizable(False, False)
-
-        dialog.transient(self.master)
-        dialog.grab_set()
-
-        main_frame = ctk.CTkFrame(dialog, fg_color=COLORS["bg_secondary"])
-        main_frame.pack(fill="both", expand=True)
-
-        icon_label = ctk.CTkLabel(
-            main_frame,
-            text="⚠️",
-            font=ctk.CTkFont(size=40),
-            fg_color="transparent"
+        """Показ диалога предупреждения"""
+        MessageDialog.show(
+            self.master, title, message,
+            icon="⚠️",
+            button_color=COLORS["warning"],
+            button_hover="#e67e22"
         )
-        icon_label.pack(pady=(15, 10))
-
-        message_label = ctk.CTkLabel(
-            main_frame,
-            text=message,
-            font=ctk.CTkFont(size=14),
-            fg_color="transparent",
-            text_color=COLORS["text_primary"],
-            wraplength=340
-        )
-        message_label.pack(pady=(0, 20))
-
-        ok_button = ctk.CTkButton(
-            main_frame,
-            text="ОК",
-            width=120,
-            height=35,
-            fg_color="#f39c12",
-            hover_color="#e67e22",
-            text_color="#ffffff",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            command=dialog.destroy
-        )
-        ok_button.pack(pady=(0, 15))
-        ok_button.focus_set()
-        dialog.bind("<Return>", lambda e: dialog.destroy())
 
     def show_yesno_dialog(self, title: str, message: str) -> bool:
-        """Показ диалога с вопросом Да/Нет в стиле GUI. Возвращает True если Да."""
-        result = {'value': False}
-        
-        self.master.update_idletasks()
-        main_x = self.master.winfo_rootx()
-        main_y = self.master.winfo_rooty()
-        main_w = self.master.winfo_width()
-        main_h = self.master.winfo_height()
-        
-        dialog_w = 400
-        dialog_h = 180
-        x = main_x + (main_w - dialog_w) // 2
-        y = main_y + (main_h - dialog_h) // 2
-
-        dialog = ctk.CTkToplevel(self.master)
-        dialog.title(title)
-        dialog.geometry(f"{dialog_w}x{dialog_h}+{x}+{y}")
-        dialog.resizable(False, False)
-
-        dialog.transient(self.master)
-        dialog.grab_set()
-
-        main_frame = ctk.CTkFrame(dialog, fg_color=COLORS["bg_secondary"])
-        main_frame.pack(fill="both", expand=True)
-
-        icon_label = ctk.CTkLabel(
-            main_frame,
-            text="❓",
-            font=ctk.CTkFont(size=40),
-            fg_color="transparent"
-        )
-        icon_label.pack(pady=(15, 10))
-
-        message_label = ctk.CTkLabel(
-            main_frame,
-            text=message,
-            font=ctk.CTkFont(size=14),
-            fg_color="transparent",
-            text_color=COLORS["text_primary"],
-            wraplength=340
-        )
-        message_label.pack(pady=(0, 20))
-
-        # Фрейм для кнопок
-        buttons_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        buttons_frame.pack(pady=(0, 15))
-
-        def on_yes():
-            result['value'] = True
-            dialog.destroy()
-
-        def on_no():
-            result['value'] = False
-            dialog.destroy()
-
-        yes_button = ctk.CTkButton(
-            buttons_frame,
-            text="Да",
-            width=100,
-            height=35,
-            fg_color=COLORS["danger"],
-            hover_color="#c0392b",
-            text_color="#ffffff",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            command=on_yes
-        )
-        yes_button.pack(side="left", padx=(20, 10))
-
-        no_button = ctk.CTkButton(
-            buttons_frame,
-            text="Нет",
-            width=100,
-            height=35,
-            fg_color=COLORS["bg_tertiary"],
-            hover_color="#3a4a5d",
-            text_color="#ffffff",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            command=on_no
-        )
-        no_button.pack(side="right", padx=(10, 20))
-
-        no_button.focus_set()
-        dialog.bind("<Return>", lambda e: on_yes())
-        dialog.bind("<Escape>", lambda e: on_no())
-        
-        # Ждём закрытия диалога
-        self.master.wait_window(dialog)
-        return result['value']
+        """Показ диалога с вопросом Да/Нет. Возвращает True если Да."""
+        return YesNoDialog.show(self.master, title, message)
 
     def disconnect(self):
         """Отключение"""
@@ -1423,96 +1180,7 @@ class VPNMainWindow(ctk.CTkFrame):
 
     def _create_text_input_dialog(self, title: str, text: str, placeholder: str = "") -> str:
         """Создание диалога для ввода текста. Возвращает введённое значение."""
-        result = {'value': None}
-
-        self.master.update_idletasks()
-        main_x = self.master.winfo_rootx()
-        main_y = self.master.winfo_rooty()
-        main_w = self.master.winfo_width()
-        main_h = self.master.winfo_height()
-
-        dialog_w = 500
-        dialog_h = 200
-        x = main_x + (main_w - dialog_w) // 2
-        y = main_y + (main_h - dialog_h) // 2
-
-        dialog = ctk.CTkToplevel(self.master)
-        dialog.title(title)
-        dialog.geometry(f"{dialog_w}x{dialog_h}+{x}+{y}")
-        dialog.resizable(False, False)
-        dialog.update_idletasks()  # Важно! Обновляем перед grab_set
-        dialog.transient(self.master)
-        dialog.grab_set()
-
-        main_frame = ctk.CTkFrame(dialog, fg_color=COLORS["bg_secondary"])
-        main_frame.pack(fill="both", expand=True)
-
-        # Текст запроса
-        text_label = ctk.CTkLabel(
-            main_frame,
-            text=text,
-            font=ctk.CTkFont(size=14),
-            fg_color="transparent",
-            text_color=COLORS["text_primary"]
-        )
-        text_label.pack(pady=(15, 5))
-
-        # Поле ввода
-        entry = ctk.CTkEntry(
-            main_frame,
-            placeholder_text=placeholder,
-            width=400,
-            height=35,
-            fg_color=COLORS["bg_tertiary"],
-            border_color=COLORS["border"],
-            text_color=COLORS["text_primary"]
-        )
-        entry.pack(pady=(5, 15))
-        entry.focus_set()
-
-        # Кнопки
-        button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        button_frame.pack(pady=(0, 15))
-
-        def on_ok():
-            result['value'] = entry.get()
-            dialog.destroy()
-
-        def on_cancel():
-            dialog.destroy()
-
-        ok_button = ctk.CTkButton(
-            button_frame,
-            text="ОК",
-            width=100,
-            height=35,
-            fg_color=COLORS["accent_blue"],
-            hover_color=COLORS["accent_blue_hover"],
-            text_color="#ffffff",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            command=on_ok
-        )
-        ok_button.pack(side="left", padx=10)
-
-        cancel_button = ctk.CTkButton(
-            button_frame,
-            text="Отмена",
-            width=100,
-            height=35,
-            fg_color=COLORS["bg_primary"],
-            hover_color=COLORS["bg_secondary"],
-            text_color=COLORS["text_primary"],
-            font=ctk.CTkFont(size=14, weight="bold"),
-            command=on_cancel
-        )
-        cancel_button.pack(side="left", padx=10)
-
-        # Обработка Enter и Escape
-        entry.bind("<Return>", lambda e: on_ok())
-        dialog.bind("<Escape>", lambda e: on_cancel())
-
-        dialog.wait_window()
-        return result['value']
+        return InputDialog.show(self.master, title, text, placeholder)
 
     def import_from_link(self):
         """Импорт из VLESS ссылки"""
