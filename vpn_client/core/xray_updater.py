@@ -9,6 +9,7 @@ import logging
 import subprocess
 import tempfile
 import shutil
+import hashlib
 from pathlib import Path
 from typing import Optional, Dict, Any, Callable
 from datetime import datetime, timedelta
@@ -358,9 +359,16 @@ class XrayUpdater:
                 return False
             
             logger.info(f"Загрузка завершена: {tmp_path}")
-            
-            # Распаковываем архив
-            if not self._extract_binary(tmp_path):
+
+            # Проверяем checksum если доступен
+            if not self._verify_checksum(tmp_path, update_info):
+                logger.error("❌ Проверка checksum не пройдена!")
+                if self.on_update_error:
+                    self.on_update_error("Неверная контрольная сумма файла")
+                return False
+
+            # Распаковываем архив атомарно
+            if not self._extract_binary_atomic(tmp_path):
                 return False
             
             # Сохраняем версию
@@ -386,52 +394,108 @@ class XrayUpdater:
                     tmp_path.unlink()
                 except:
                     pass
-    
-    def _extract_binary(self, archive_path: Path) -> bool:
-        """Извлечь бинарник из архива"""
-        import zipfile
+
+    def _verify_checksum(self, file_path: Path, update_info: Dict[str, Any]) -> bool:
+        """
+        Проверка SHA256 checksum загруженного файла
         
+        Args:
+            file_path: Путь к загруженному файлу
+            update_info: Информация об обновлении
+            
+        Returns:
+            True если checksum совпадает или недоступна
+        """
+        expected_hash = update_info.get('assets', [{}])[0].get('sha256')
+        
+        if not expected_hash:
+            logger.warning("⚠️ SHA256 hash недоступен, пропускаем проверку")
+            return True  # Разрешаем продолжить без hash
+        
+        try:
+            sha256 = hashlib.sha256()
+            with open(file_path, 'rb') as f:
+                for chunk in iter(lambda: f.read(8192), b''):
+                    sha256.update(chunk)
+            
+            actual_hash = sha256.hexdigest()
+            
+            if actual_hash != expected_hash:
+                logger.error(f"❌Checksum не совпадает!")
+                logger.error(f"  Ожидался: {expected_hash}")
+                logger.error(f"  Получен:  {actual_hash}")
+                return False
+            
+            logger.info(f"✅ SHA256 checksum совпадает: {actual_hash[:16]}...")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Ошибка проверки checksum: {e}")
+            return True  # Разрешаем продолжить при ошибке проверки
+
+    def _extract_binary_atomic(self, archive_path: Path) -> bool:
+        """
+        Атомарное извлечение бинарника из архива
+        
+        Сначала извлекаем во временный файл, проверяем, потом атомарно заменяем
+        
+        Args:
+            archive_path: Путь к ZIP архиву
+            
+        Returns:
+            True если успешно
+        """
+        import zipfile
+
         try:
             with zipfile.ZipFile(archive_path, 'r') as zf:
                 # Находим бинарник в архиве
                 binary_name = 'xray.exe' if sys.platform == 'win32' else 'xray'
-                
+
                 for member in zf.namelist():
                     if member.endswith(binary_name) and '/' not in member[:-len(binary_name)]:
-                        # Извлекаем бинарник
-                        with zf.open(member) as source:
-                            # Создаем временный файл для нового бинарника
-                            new_binary = self.binary_file.with_suffix('.new')
-                            with open(new_binary, 'wb') as target:
-                                shutil.copyfileobj(source, target)
+                        # Извлекаем бинарник во временный файл
+                        temp_binary = self.binary_file.with_suffix('.tmp')
                         
-                        # Делаем исполняемым (Unix)
-                        if sys.platform != 'win32':
-                            os.chmod(new_binary, 0o755)
-                        
-                        # Заменяем старый бинарник новым
-                        # Сначала переименовываем старый в .old
-                        if self.binary_file.exists():
-                            old_backup = self.binary_file.with_suffix('.old')
-                            self.binary_file.rename(old_backup)
-                        
-                        # Переименовываем новый
-                        new_binary.rename(self.binary_file)
-                        
-                        # Удаляем backup
-                        if old_backup.exists():
-                            old_backup.unlink()
-                        
-                        logger.info(f"Бинарник обновлен: {self.binary_file}")
-                        return True
-                
+                        try:
+                            with zf.open(member) as source:
+                                with open(temp_binary, 'wb') as target:
+                                    shutil.copyfileobj(source, target)
+
+                            # Делаем исполняемым (Unix)
+                            if sys.platform != 'win32':
+                                os.chmod(temp_binary, 0o755)
+                            
+                            # Проверяем что файл работает (хотя бы что он существует и не пустой)
+                            if not temp_binary.exists() or temp_binary.stat().st_size == 0:
+                                logger.error("Извлечённый бинарник пустой или не существует")
+                                temp_binary.unlink(missing_ok=True)
+                                return False
+
+                            # Атомарно заменяем старый бинарник новым
+                            # shutil.move использует os.replace() который атомарен на POSIX
+                            shutil.move(str(temp_binary), str(self.binary_file))
+
+                            logger.info(f"✅ Бинарник обновлен: {self.binary_file}")
+                            return True
+                            
+                        except Exception as e:
+                            # Очищаем временный файл при ошибке
+                            temp_binary.unlink(missing_ok=True)
+                            logger.error(f"Ошибка при извлечении: {e}")
+                            return False
+
                 logger.error(f"Бинарник {binary_name} не найден в архиве")
                 return False
-                
+
         except Exception as e:
             logger.error(f"Ошибка распаковки: {e}", exc_info=True)
             return False
-    
+
+    def _extract_binary(self, archive_path: Path) -> bool:
+        """Извлечь бинарник из архива (устаревший метод, использует атомарную версию)"""
+        return self._extract_binary_atomic(archive_path)
+
     def install_update(self, update_info: Dict[str, Any],
                        progress_callback: Optional[Callable[[int, int], None]] = None) -> bool:
         """

@@ -33,6 +33,11 @@ class VPNMainWindow(ctk.CTkFrame):
         self.is_connected = False
         self.auto_start_proxy = auto_start_proxy
         self.app_state = app_state or {'is_hidden': False}
+        
+        # Блокировка для потокобезопасного доступа к общим переменным
+        self._lock = threading.Lock()
+        self._connection_failures = 0
+        self._max_failures = 3
 
         # Настройка стиля
         ctk.set_appearance_mode("dark")
@@ -183,8 +188,6 @@ class VPNMainWindow(ctk.CTkFrame):
         self.session_timer_id = None
         self.latency_timer_id = None
         self.local_port = 10808  # Порт прокси для измерения latency
-        self._connection_failures = 0  # Счётчик неудачных попыток подключения
-        self._max_failures = 3  # Максимум провалов перед детектированием потери
 
         # Вкладки
         self.tabview = ctk.CTkTabview(
@@ -919,7 +922,8 @@ class VPNMainWindow(ctk.CTkFrame):
         try:
             result = self.controller.connect(config_data)
             if result:
-                self._connection_failures = 0  # Сброс счётчика при успешном подключении
+                with self._lock:
+                    self._connection_failures = 0  # Сброс счётчика при успешном подключении
                 self.update_ui_connected(True)
                 self.append_log("✅ Подключение успешно")
                 self.save_settings()
@@ -1269,7 +1273,8 @@ class VPNMainWindow(ctk.CTkFrame):
     def disconnect(self):
         """Отключение"""
         self.controller.disconnect()
-        self._connection_failures = 0  # Сброс счётчика при отключении
+        with self._lock:
+            self._connection_failures = 0  # Сброс счётчика при отключении
         self.update_ui_connected(False)
         self.append_log("Отключено")
 
@@ -1367,7 +1372,8 @@ class VPNMainWindow(ctk.CTkFrame):
         if self.latency_timer_id:
             self.master.after_cancel(self.latency_timer_id)
             self.latency_timer_id = None
-        self._connection_failures = 0  # Сброс счётчика
+        with self._lock:
+            self._connection_failures = 0  # Сброс счётчика
         self.latency_label.configure(text="")
 
     def schedule_next_latency_measurement(self):
@@ -1386,26 +1392,31 @@ class VPNMainWindow(ctk.CTkFrame):
             try:
                 # Используем controller.check_connection() — один запрос для latency и мониторинга
                 latency = self.controller.check_connection(self.local_port)
-                
+
                 if latency > 0:
                     # Успех — сбрасываем счётчик неудач
-                    self._connection_failures = 0
+                    with self._lock:
+                        self._connection_failures = 0
                     latency_ms = latency * 1000
                     self.master.after(0, lambda: self.latency_label.configure(text=f"📶 {latency_ms:.0f} мс"))
                 else:
                     # Неудача — инкремент счётчика
-                    self._connection_failures += 1
+                    with self._lock:
+                        self._connection_failures += 1
+                        failures = self._connection_failures
                     self.master.after(0, lambda: self.latency_label.configure(text="📶 --"))
-                    
+
                     # 3 неудачи подряд = потеря соединения
-                    if self._connection_failures >= self._max_failures:
+                    if failures >= self._max_failures:
                         self.master.after(0, self.on_connection_lost)
-                        
+
             except Exception:
-                self._connection_failures += 1
+                with self._lock:
+                    self._connection_failures += 1
+                    failures = self._connection_failures
                 self.master.after(0, lambda: self.latency_label.configure(text="📶 --"))
-                
-                if self._connection_failures >= self._max_failures:
+
+                if failures >= self._max_failures:
                     self.master.after(0, self.on_connection_lost)
 
         threading.Thread(target=_measure, daemon=True).start()

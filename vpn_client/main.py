@@ -60,8 +60,13 @@ def main():
 
     def create_icon():
         """Создание иконки для трея"""
-        icon_path = os.path.join(os.path.dirname(__file__), "assets", "icons8-vpn-48.png")
-        return Image.open(icon_path)
+        try:
+            icon_path = os.path.join(os.path.dirname(__file__), "assets", "icons8-vpn-48.png")
+            return Image.open(icon_path)
+        except Exception as e:
+            print(f"⚠️ Ошибка загрузки иконки: {e}")
+            # Возвращаем пустую иконку если файл не найден
+            return Image.new('RGB', (48, 48), color='#4a9eff')
 
     def on_show(icon, item):
         """Показать окно"""
@@ -101,19 +106,15 @@ def main():
     # Создание иконки
     icon = pystray.Icon("vpn_client", create_icon(), "VPN Client", create_menu())
 
-    # Запуск иконки в ОТДЕЛЬНОМ daemon потоке
+    # Запуск иконки в ОТДЕЛЬНОМ потоке (не daemon чтобы не завершился преждевременно)
     def run_icon():
         try:
             icon.run()
-        except Exception:
-            pass
-    
-    icon_thread = threading.Thread(target=run_icon, daemon=True)
+        except Exception as e:
+            print(f"Ошибка иконки: {e}")
+
+    icon_thread = threading.Thread(target=run_icon, daemon=False)
     icon_thread.start()
-    
-    # Небольшая задержка чтобы иконка успела создаться
-    import time
-    time.sleep(0.1)
 
     # Обработка закрытия окна - сворачивание в трей
     def on_close():
@@ -138,7 +139,12 @@ def main():
         app.mainloop()
     finally:
         # Остановка иконки при выходе
-        icon.stop()
+        try:
+            icon.stop()
+        except Exception:
+            pass
+        # Ждём завершения потока иконки
+        icon_thread.join(timeout=2.0)
 
 
 if __name__ == "__main__":
