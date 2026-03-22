@@ -3,6 +3,7 @@
 Современный строгий дизайн с серо-голубой цветовой схемой
 """
 import customtkinter as ctk
+from datetime import datetime
 import threading
 
 from .styles import COLORS
@@ -458,7 +459,7 @@ class VPNMainWindow(ctk.CTkFrame):
 
         # Service Name (только для GRPC)
         ctk.CTkLabel(
-            self.form_frame, text="Service Name:", font=label_font,
+            self.form_frame, text="Service Name(gRPC):", font=label_font,
             text_color=COLORS["text_primary"]
         ).grid(row=10, column=0, sticky="w", pady=8, padx=10)
         self.edit_service_name = ctk.CTkEntry(
