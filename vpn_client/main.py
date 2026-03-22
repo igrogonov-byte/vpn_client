@@ -1,4 +1,4 @@
--                           #!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 VPN Client - VLESS Reality xhttp
 GUI на CustomTkinter + pystray (правильная работа в трее)
