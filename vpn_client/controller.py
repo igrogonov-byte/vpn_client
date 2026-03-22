@@ -88,7 +88,9 @@ class VPNController:
                 flow=config_data.get("flow", "").strip(),
                 local_socks_port=local_port,
                 local_http_port=local_port + 1,
-                transport=config_data.get("transport", "xhttp").strip() if config_data.get("transport") else "xhttp"
+                transport=config_data.get("transport", "xhttp").strip() if config_data.get("transport") else "xhttp",
+                grpc_service_name=config_data.get("service_name", "grpc").strip() if config_data.get("service_name") else "grpc",
+                grpc_multi_mode=config_data.get("mode", "").strip() == "multi"
             )
 
             if not save_config(xray_config, str(self.config_file)):

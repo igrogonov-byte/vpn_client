@@ -22,11 +22,11 @@ def create_vless_reality_xhttp(
     flow: str = "",
     transport: str = "xhttp",
     grpc_service_name: str = "grpc",
-    ws_path: str = "/"
+    grpc_multi_mode: bool = False
 ) -> dict:
     """
     Создание конфигурации VLESS Reality
-    
+
     Args:
         address: Адрес сервера
         port: Порт сервера
@@ -38,9 +38,9 @@ def create_vless_reality_xhttp(
         local_socks_port: Локальный SOCKS порт
         local_http_port: Локальный HTTP порт
         flow: Поток (xtls-rprx-vision или пустой)
-        transport: Транспорт (xhttp, grpc, ws, tcp)
+        transport: Транспорт (xhttp, grpc, tcp)
         grpc_service_name: Имя сервиса GRPC
-        ws_path: Путь WebSocket
+        grpc_multi_mode: Включить multiMode для GRPC
     """
     
     # Нормализация short_id (должен быть hex)
@@ -72,17 +72,10 @@ def create_vless_reality_xhttp(
         }
     elif transport == "grpc":
         stream_settings["grpcSettings"] = {
-            "serviceName": grpc_service_name,
-            "multiMode": False
+            "serviceName": grpc_service_name if grpc_service_name else "grpc",
+            "multiMode": grpc_multi_mode
         }
-    elif transport == "ws":
-        stream_settings["wsSettings"] = {
-            "path": ws_path,
-            "headers": {
-                "Host": server_name
-            }
-        }
-    
+
     # Outbound (исходящее подключение)
     outbound = {
         "protocol": "vless",
@@ -263,6 +256,7 @@ def parse_vless_link(link: str) -> Optional[Dict[str, Any]]:
             "path": params.get("path", ["/"])[0],
             "host": params.get("host", [""])[0],
             "serviceName": params.get("serviceName", ["grpc"])[0],
+            "mode": params.get("mode", ["gun"])[0],  # gun или multi
         }
 
         return result

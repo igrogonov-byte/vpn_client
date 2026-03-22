@@ -223,6 +223,9 @@ class VPNMainWindow(ctk.CTkFrame):
         # Вкладка логов
         self.create_logs_tab()
 
+        # Инициализация видимости Service Name
+        self._on_transport_change()
+
         # Кнопки управления
         self.btn_frame = ctk.CTkFrame(self, fg_color="transparent", height=60)
         self.btn_frame.pack(fill="x", padx=30, pady=(15, 25))
@@ -452,26 +455,48 @@ class VPNMainWindow(ctk.CTkFrame):
             text_color=COLORS["text_primary"]
         ).grid(row=9, column=0, sticky="w", pady=8, padx=10)
         self.combo_transport = ctk.CTkComboBox(
-            self.form_frame, values=["xhttp", "grpc", "ws", "tcp"], width=entry_width, height=entry_height,
+            self.form_frame, values=["xhttp", "grpc", "tcp"], width=entry_width, height=entry_height,
             fg_color=COLORS["bg_tertiary"], border_color=COLORS["border"],
             text_color=COLORS["text_primary"],
-            button_color=COLORS["accent_blue"], button_hover_color=COLORS["accent_blue_hover"]
+            button_color=COLORS["accent_blue"], button_hover_color=COLORS["accent_blue_hover"],
+            command=self._on_transport_change
         )
         self.combo_transport.grid(row=9, column=1, pady=8, padx=10)
+
+        # Service Name (только для GRPC)
+        ctk.CTkLabel(
+            self.form_frame, text="Service Name:", font=label_font,
+            text_color=COLORS["text_primary"]
+        ).grid(row=10, column=0, sticky="w", pady=8, padx=10)
+        self.edit_service_name = ctk.CTkEntry(
+            self.form_frame, placeholder_text="grpc", width=entry_width, height=entry_height,
+            fg_color=COLORS["bg_tertiary"], border_color=COLORS["border"],
+            text_color=COLORS["text_primary"]
+        )
+        self.edit_service_name.grid(row=10, column=1, pady=8, padx=10)
+        self.edit_service_name.insert(0, "grpc")
+        self._add_context_menu(self.edit_service_name)
 
         # Локальный порт (по умолчанию 10808)
         ctk.CTkLabel(
             self.form_frame, text="Local SOCKS:", font=label_font,
             text_color=COLORS["text_primary"]
-        ).grid(row=10, column=0, sticky="w", pady=8, padx=10)
+        ).grid(row=11, column=0, sticky="w", pady=8, padx=10)
         self.spin_local_port = ctk.CTkEntry(
             self.form_frame, placeholder_text="10808", width=entry_width, height=entry_height,
             fg_color=COLORS["bg_tertiary"], border_color=COLORS["border"],
             text_color=COLORS["text_primary"]
         )
-        self.spin_local_port.grid(row=10, column=1, pady=8, padx=10)
+        self.spin_local_port.grid(row=11, column=1, pady=8, padx=10)
         self.spin_local_port.insert(0, "10808")
         self._add_context_menu(self.spin_local_port)
+
+    def _on_transport_change(self, transport=None):
+        """Обработка смены транспорта - показ/скрытие Service Name"""
+        if self.combo_transport.get() == "grpc":
+            self.edit_service_name.grid()
+        else:
+            self.edit_service_name.grid_remove()
 
     def _add_context_menu(self, widget):
         """Добавление кастомного контекстного меню (ПКМ) для поля ввода"""
@@ -599,6 +624,8 @@ class VPNMainWindow(ctk.CTkFrame):
             "flow": self.combo_flow.get(),
             "transport": self.combo_transport.get(),
             "local_port": self.spin_local_port.get(),
+            "mode": getattr(self, '_imported_mode', 'gun'),
+            "service_name": self.edit_service_name.get(),
         }
 
     def _fill_form_from_config(self, config):
@@ -617,8 +644,12 @@ class VPNMainWindow(ctk.CTkFrame):
         self.edit_short_id.insert(0, config.get("short_id", ""))
         self.combo_flow.set(config.get("flow", ""))
         self.combo_transport.set(config.get("transport", "xhttp"))
+        self.edit_service_name.delete(0, 'end')
+        self.edit_service_name.insert(0, config.get("service_name", "grpc"))
         self.spin_local_port.delete(0, 'end')
         self.spin_local_port.insert(0, str(config.get("local_port", "10808")))
+        # Обновить видимость Service Name
+        self._on_transport_change()
 
     def refresh_profiles(self):
         """Обновление списка профилей в ComboBox"""
@@ -1358,8 +1389,14 @@ class VPNMainWindow(ctk.CTkFrame):
                     self.edit_short_id.insert(0, params.get("sid", ""))
                     self.combo_flow.set(params.get("flow", ""))
                     self.combo_transport.set(params.get("type", "xhttp"))
+                    self.edit_service_name.delete(0, 'end')
+                    self.edit_service_name.insert(0, params.get("serviceName", "grpc"))
+                    # Сохраняем mode для controller
+                    self._imported_mode = params.get("mode", "gun")
                     self.append_log("✅ Конфигурация импортирована из ссылки")
                     self.save_settings()
+                    # Обновить видимость Service Name
+                    self._on_transport_change()
                 else:
                     self.show_import_error_dialog(
                         "Не удалось распарсить VLESS ссылку.",
